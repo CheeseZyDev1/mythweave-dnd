@@ -79,7 +79,7 @@
         <div class="party-list" id="partyList"></div>
         <div class="invite-card">
           <span class="rune">⌘</span>
-          <div><b>ชวนเพื่อนเข้าร่วม</b><small>รหัสห้อง <strong id="roomCode">MOON-742</strong></small></div>
+          <div><b>ชวนเพื่อนเข้าร่วม</b><small>รหัสห้อง <strong id="roomCode">ยังไม่มีห้อง</strong></small></div>
           <button id="copyInvite" title="คัดลอกลิงก์">⧉</button>
         </div>
         <div class="connection-note"><i></i> ห้องพร้อมรับผู้เล่น</div>
@@ -162,15 +162,18 @@
   <div class="modal join-modal" id="joinModal" aria-hidden="true">
     <div class="modal-card join-card glass">
       <div id="joinStage">
-        <span class="join-emblem">M</span><span class="eyebrow">MYTHWEAVE ONLINE</span><h2>เข้าร่วมการผจญภัย</h2><p>ตั้งชื่อและเลือกรูปแบบแคมเปญ ผู้เล่นคนแรกจะเป็นโฮสต์ของห้อง</p>
+        <span class="join-emblem">M</span><span class="eyebrow">MYTHWEAVE ONLINE</span><h2 id="roomActionTitle">เตรียมคณะเดินทาง</h2><p id="roomActionDescription">หัวปาร์ตี้สร้างห้องส่วนตัว หรือใช้รหัสเชิญเพื่อเข้าร่วมกับเพื่อน</p>
         <label class="join-field">ชื่อผู้เล่น<input id="joinName" maxlength="28" autocomplete="nickname" placeholder="เช่น กิ๊ฟ"></label>
-        <div class="session-choices" id="sessionChoices"><button class="selected" data-mode="new"><span>✦</span><b>เริ่มการผจญภัยใหม่</b><small>เริ่มจากป่าเอลเดอร์วูด</small></button><button data-mode="resume"><span>↻</span><b>เล่นต่อจากเซฟ</b><small>ใช้แคมเปญล่าสุดของโฮสต์</small></button></div>
-        <div class="join-room"><span>รหัสห้อง</span><b id="joinRoomCode">MOON-742</b><i>● พร้อมเชื่อมต่อ</i></div>
-        <button class="primary-btn full" id="joinConfirm">เข้าสู่ล็อบบี้ →</button>
+        <div class="room-action-choices" id="roomActionChoices"><button class="selected" data-action="create"><span>♛</span><b>สร้างห้อง</b><small>สำหรับหัวปาร์ตี้</small></button><button data-action="join"><span>⌘</span><b>เข้าร่วมห้อง</b><small>ใช้รหัสจากเพื่อน</small></button></div>
+        <div id="createRoomPanel" class="room-action-panel active"><span class="panel-label">เลือกแคมเปญของห้อง</span><div class="session-choices" id="sessionChoices"><button class="selected" data-mode="new"><span>✦</span><b>เริ่มการผจญภัยใหม่</b><small>เริ่มจากป่าเอลเดอร์วูด</small></button><button data-mode="resume"><span>↻</span><b>เล่นต่อจากเซฟ</b><small>ใช้เซฟล่าสุดของหัวปาร์ตี้</small></button></div><div class="privacy-note"><span>◆</span><div><b>ห้องส่วนตัว</b><small>ระบบจะสุ่มรหัส 8 ตัวที่คาดเดาได้ยากให้คุณแชร์เฉพาะเพื่อน</small></div></div></div>
+        <div id="joinRoomPanel" class="room-action-panel"><label class="join-field room-code-field">รหัสห้องจากหัวปาร์ตี้<input id="joinCodeInput" maxlength="9" autocomplete="off" spellcheck="false" placeholder="เช่น 7KDM-R4TX"></label><small class="code-help">ใส่รหัส 8 ตัว หรือลิงก์เชิญที่เพื่อนส่งให้</small></div>
+        <p class="room-error-text" id="roomErrorText" role="alert"></p>
+        <button class="primary-btn full" id="joinConfirm">สร้างห้องส่วนตัว →</button>
         <button class="offline-link" id="joinOffline">ทดลองเล่นออฟไลน์</button><small class="wake-note">หากเป็นการเปิดห้องครั้งแรก อาจใช้เวลาปลุกเซิร์ฟเวอร์ฟรีประมาณหนึ่งนาที</small>
       </div>
       <div id="lobbyStage" class="lobby-stage">
-        <div class="lobby-head"><span class="join-emblem small-emblem">M</span><div><span class="eyebrow">ห้อง <b id="lobbyRoomCode">MOON-742</b></span><h2>รวมคณะเดินทาง</h2></div></div>
+        <div class="lobby-head"><span class="join-emblem small-emblem">M</span><div><span class="eyebrow">ห้องส่วนตัว</span><h2>รวมคณะเดินทาง</h2></div></div>
+        <div class="lobby-invite"><div><small>รหัสเชิญ</small><b id="lobbyRoomCode">----</b></div><button id="lobbyCopyInvite">⧉ คัดลอกลิงก์</button></div>
         <div class="campaign-badge"><span id="lobbyModeIcon">✦</span><div><small>แคมเปญ</small><b id="lobbyModeText">การผจญภัยใหม่</b></div></div>
         <div class="lobby-players" id="lobbyPlayers"></div>
         <p class="ready-hint" id="readyHint">กดพร้อมเมื่อจัดตัวละครเสร็จแล้ว</p>

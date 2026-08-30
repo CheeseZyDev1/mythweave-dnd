@@ -1,5 +1,6 @@
 const path = require('node:path');
 const http = require('node:http');
+const crypto = require('node:crypto');
 const express = require('express');
 const { Server } = require('socket.io');
 
@@ -7,6 +8,10 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { maxHttpBufferSize: 1e6 });
 const rooms = new Map();
+const ROOM_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const ROOM_CODE_PATTERN = /^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/;
+const MAX_PLAYERS = 8;
+const RECONNECT_GRACE_MS = 2 * 60 * 1000;
 
 app.use(express.static(__dirname, { extensions: ['html'] }));
 app.get('/health', (_req, res) => res.json({ ok: true, rooms: rooms.size }));
@@ -15,118 +20,253 @@ app.get('*path', (_req, res) => res.sendFile(path.join(__dirname, 'index.html'))
 function cleanText(value, max = 40) {
   return String(value || '').replace(/[<>]/g, '').trim().slice(0, max);
 }
-function getRoom(id) {
-  if (!rooms.has(id)) rooms.set(id, { players: new Map(), order: [], turnIndex: 0, history: [], hostId: null, mode: 'new', campaign: null, started: false });
-  return rooms.get(id);
+
+function normalizeRoomCode(value) {
+  const compact = cleanText(value, 16).toUpperCase().replace(/[^A-Z2-9]/g, '');
+  return compact.length === 8 ? `${compact.slice(0, 4)}-${compact.slice(4)}` : '';
 }
+
+function generateRoomCode() {
+  let code;
+  do {
+    const chars = Array.from({ length: 8 }, () => ROOM_ALPHABET[crypto.randomInt(ROOM_ALPHABET.length)]).join('');
+    code = `${chars.slice(0, 4)}-${chars.slice(4)}`;
+  } while (rooms.has(code));
+  return code;
+}
+
+function normalizeCampaign(value) {
+  if (!value || typeof value !== 'object') return null;
+  return {
+    location: cleanText(value.location, 24) || 'elderwood',
+    visited: Array.isArray(value.visited) ? value.visited.slice(0, 20).map(item => cleanText(item, 24)).filter(Boolean) : ['elderwood'],
+    round: Math.min(9999, Math.max(1, Number(value.round) || 1)),
+    journal: cleanText(value.journal, 8000)
+  };
+}
+
+function createRoom(payload) {
+  const room = {
+    id: generateRoomCode(),
+    players: new Map(),
+    order: [],
+    turnIndex: 0,
+    history: [],
+    hostId: null,
+    mode: payload?.mode === 'resume' ? 'resume' : 'new',
+    campaign: payload?.mode === 'resume' ? normalizeCampaign(payload?.campaign) : null,
+    started: false,
+    createdAt: Date.now()
+  };
+  rooms.set(room.id, room);
+  return room;
+}
+
+function rateLimitRoomAttempts(socket) {
+  const now = Date.now();
+  socket.data.roomAttempts = (socket.data.roomAttempts || []).filter(at => now - at < 60_000);
+  if (socket.data.roomAttempts.length >= 10) return false;
+  socket.data.roomAttempts.push(now);
+  return true;
+}
+
+function roomError(socket, code, message) {
+  socket.emit('room-error', { code, message });
+}
+
+function normalizeTurn(room) {
+  room.order = room.order.filter(id => room.players.has(id));
+  if (!room.order.length) {
+    room.turnIndex = 0;
+    return;
+  }
+  if (room.turnIndex >= room.order.length) room.turnIndex = 0;
+  if (!room.players.get(room.order[room.turnIndex])?.online) {
+    const onlineIndex = room.order.findIndex(id => room.players.get(id)?.online);
+    if (onlineIndex >= 0) room.turnIndex = onlineIndex;
+  }
+}
+
 function publicRoom(room) {
-  const order = room.order.filter(id => room.players.has(id));
-  room.order = order;
-  if (room.turnIndex >= order.length) room.turnIndex = 0;
-  if (!room.hostId || !room.players.has(room.hostId)) room.hostId = order[0] || null;
-  return { players: order.map(id => room.players.get(id)), currentTurnId: order[room.turnIndex] || null, hostId: room.hostId, mode: room.mode, started: room.started };
+  normalizeTurn(room);
+  if (!room.hostId || !room.players.has(room.hostId)) room.hostId = room.order[0] || null;
+  return {
+    players: room.order.map(id => room.players.get(id)),
+    currentTurnId: room.order[room.turnIndex] || null,
+    hostId: room.hostId,
+    mode: room.mode,
+    started: room.started,
+    maxPlayers: MAX_PLAYERS
+  };
 }
+
 function emitState(roomId) {
   const room = rooms.get(roomId);
   if (room) io.to(roomId).emit('room-state', publicRoom(room));
 }
 
-io.on('connection', socket => {
-  socket.on('join-room', payload => {
-    const roomId = cleanText(payload?.roomId, 24).toUpperCase() || 'MOON-742';
-    const room = getRoom(roomId);
-    const isFirstPlayer = room.players.size === 0;
-    if (isFirstPlayer) {
-      room.mode = payload?.mode === 'resume' ? 'resume' : 'new';
-      room.campaign = room.mode === 'resume' && payload?.campaign ? payload.campaign : null;
-      room.started = false;
-    }
-    socket.join(roomId);
-    socket.data.roomId = roomId;
-    const player = {
-      id: socket.id,
-      clientId: cleanText(payload?.player?.clientId, 60),
+function playerFor(socket) {
+  const room = rooms.get(socket.data.roomId);
+  const player = room?.players.get(socket.data.playerId);
+  return { room, player: player?.socketId === socket.id ? player : null };
+}
+
+function attachPlayer(socket, room, payload) {
+  const requestedId = cleanText(payload?.player?.clientId, 80);
+  const playerId = requestedId.length >= 12 ? requestedId : crypto.randomUUID();
+  let player = room.players.get(playerId);
+  if (!player && room.players.size >= MAX_PLAYERS) return { error: 'FULL' };
+  if (room.started && !player) return { error: 'STARTED' };
+
+  if (player) {
+    player.name = cleanText(payload?.player?.name, 28) || player.name;
+    player.iconData = String(payload?.player?.iconData || player.iconData || '').slice(0, 12000);
+    player.location = cleanText(payload?.player?.location, 24) || player.location;
+    player.socketId = socket.id;
+    player.online = true;
+    player.disconnectedAt = null;
+  } else {
+    player = {
+      id: playerId,
+      clientId: playerId,
+      socketId: socket.id,
       name: cleanText(payload?.player?.name, 28) || 'นักผจญภัย',
       iconData: String(payload?.player?.iconData || '').slice(0, 12000),
       location: cleanText(payload?.player?.location, 24) || 'elderwood',
       online: true,
-      ready: false
+      ready: false,
+      disconnectedAt: null
     };
-    room.players.set(socket.id, player);
-    room.order.push(socket.id);
-    if (isFirstPlayer) room.hostId = socket.id;
-    socket.emit('joined-room', { roomId, selfId: socket.id });
-    io.to(roomId).emit('system-event', { text: `${player.name} เข้าร่วมห้องแล้ว`, at: Date.now() });
-    emitState(roomId);
+    room.players.set(playerId, player);
+    room.order.push(playerId);
+  }
+
+  socket.join(room.id);
+  socket.data.roomId = room.id;
+  socket.data.playerId = playerId;
+  return { player };
+}
+
+function enterRoom(socket, room, payload, eventName) {
+  const existed = room.players.has(cleanText(payload?.player?.clientId, 80));
+  const result = attachPlayer(socket, room, payload);
+  if (result.error === 'FULL') return roomError(socket, 'ROOM_FULL', 'ห้องนี้มีผู้เล่นครบ 8 คนแล้ว');
+  if (result.error === 'STARTED') return roomError(socket, 'GAME_STARTED', 'ห้องนี้เริ่มการผจญภัยแล้ว');
+  if (!room.hostId) room.hostId = result.player.id;
+  socket.emit(eventName, { roomId: room.id, selfId: result.player.id, reconnected: existed });
+  io.to(room.id).emit('system-event', { text: `${result.player.name} ${existed ? 'กลับเข้าห้องแล้ว' : 'เข้าร่วมห้องแล้ว'}`, at: Date.now() });
+  emitState(room.id);
+}
+
+function advanceTurn(room) {
+  if (!room.order.length) return;
+  for (let step = 1; step <= room.order.length; step++) {
+    const index = (room.turnIndex + step) % room.order.length;
+    if (room.players.get(room.order[index])?.online) {
+      room.turnIndex = index;
+      return;
+    }
+  }
+}
+
+io.on('connection', socket => {
+  socket.on('create-room', payload => {
+    if (!rateLimitRoomAttempts(socket)) return roomError(socket, 'RATE_LIMIT', 'สร้างห้องถี่เกินไป กรุณารอสักครู่');
+    if (socket.data.roomId) return roomError(socket, 'ALREADY_JOINED', 'คุณอยู่ในห้องแล้ว');
+    const room = createRoom(payload);
+    enterRoom(socket, room, payload, 'room-created');
+  });
+
+  socket.on('join-room', payload => {
+    if (!rateLimitRoomAttempts(socket)) return roomError(socket, 'RATE_LIMIT', 'ลองเข้าห้องถี่เกินไป กรุณารอสักครู่');
+    const roomId = normalizeRoomCode(payload?.roomId);
+    if (!ROOM_CODE_PATTERN.test(roomId)) return roomError(socket, 'INVALID_CODE', 'รูปแบบรหัสห้องไม่ถูกต้อง');
+    const room = rooms.get(roomId);
+    if (!room) return roomError(socket, 'ROOM_NOT_FOUND', 'ไม่พบห้องนี้ ตรวจสอบรหัสกับหัวปาร์ตี้อีกครั้ง');
+    if (socket.data.roomId && socket.data.roomId !== roomId) return roomError(socket, 'ALREADY_JOINED', 'คุณอยู่ในห้องอื่นแล้ว');
+    enterRoom(socket, room, payload, 'joined-room');
   });
 
   socket.on('player-update', patch => {
-    const room = rooms.get(socket.data.roomId), player = room?.players.get(socket.id);
+    const { room, player } = playerFor(socket);
     if (!player) return;
     if (patch.name) player.name = cleanText(patch.name, 28);
     if (patch.location) player.location = cleanText(patch.location, 24);
     if (patch.iconData) player.iconData = String(patch.iconData).slice(0, 12000);
-    emitState(socket.data.roomId);
+    emitState(room.id);
   });
 
   socket.on('player-ready', value => {
-    const room = rooms.get(socket.data.roomId), player = room?.players.get(socket.id);
+    const { room, player } = playerFor(socket);
     if (!player || room.started) return;
     player.ready = Boolean(value);
-    emitState(socket.data.roomId);
+    emitState(room.id);
   });
 
   socket.on('start-game', () => {
-    const roomId = socket.data.roomId, room = rooms.get(roomId);
-    if (!room || room.hostId !== socket.id) return socket.emit('action-error', 'เฉพาะโฮสต์เท่านั้นที่เริ่มเกมได้');
+    const { room, player } = playerFor(socket);
+    if (!room || !player || room.hostId !== socket.data.playerId) return socket.emit('action-error', 'เฉพาะหัวปาร์ตี้เท่านั้นที่เริ่มเกมได้');
     const players = [...room.players.values()];
-    if (!players.length || players.some(player => !player.ready)) return socket.emit('action-error', 'ต้องรอให้ผู้เล่นทุกคนพร้อมก่อน');
+    if (!players.length || players.some(player => !player.online || !player.ready)) return socket.emit('action-error', 'ผู้เล่นทุกคนต้องออนไลน์และกดพร้อมก่อน');
     room.started = true;
     room.turnIndex = 0;
-    io.to(roomId).emit('game-started', { mode: room.mode, campaign: room.campaign });
-    emitState(roomId);
+    normalizeTurn(room);
+    io.to(room.id).emit('game-started', { mode: room.mode, campaign: room.campaign });
+    emitState(room.id);
   });
 
   socket.on('roll-request', payload => {
-    const roomId = socket.data.roomId, room = rooms.get(roomId);
-    if (!room || !room.started) return socket.emit('action-error', 'เกมยังไม่เริ่ม');
-    const current = publicRoom(room).currentTurnId;
-    if (current !== socket.id) return socket.emit('action-error', 'ยังไม่ถึงเทิร์นของคุณ');
+    const { room, player } = playerFor(socket);
+    if (!room || !player || !room.started) return socket.emit('action-error', 'เกมยังไม่เริ่ม');
+    if (publicRoom(room).currentTurnId !== socket.data.playerId) return socket.emit('action-error', 'ยังไม่ถึงเทิร์นของคุณ');
     const sides = Math.min(100, Math.max(2, Number(payload?.sides) || 20));
     const modifier = Math.min(20, Math.max(-20, Number(payload?.modifier) || 0));
-    const raw = Math.floor(Math.random() * sides) + 1;
-    const player = room.players.get(socket.id);
-    const result = { id: `${Date.now()}-${socket.id}`, rollerId: socket.id, rollerName: player.name, iconData: player.iconData, sides, modifier, raw, total: raw + modifier, at: Date.now() };
+    const raw = crypto.randomInt(1, sides + 1);
+    const result = { id: `${Date.now()}-${socket.data.playerId}`, rollerId: socket.data.playerId, rollerName: player.name, iconData: player.iconData, sides, modifier, raw, total: raw + modifier, at: Date.now() };
     room.history.push(result);
     if (room.history.length > 40) room.history.shift();
-    io.to(roomId).emit('dice-rolled', result);
+    io.to(room.id).emit('dice-rolled', result);
   });
 
   socket.on('end-turn', () => {
-    const roomId = socket.data.roomId, room = rooms.get(roomId);
-    if (!room || !room.started) return socket.emit('action-error', 'เกมยังไม่เริ่ม');
-    if (publicRoom(room).currentTurnId !== socket.id) return socket.emit('action-error', 'เฉพาะผู้เล่นในเทิร์นเท่านั้นที่จบเทิร์นได้');
-    room.turnIndex = room.order.length ? (room.turnIndex + 1) % room.order.length : 0;
-    emitState(roomId);
+    const { room, player } = playerFor(socket);
+    if (!room || !player || !room.started) return socket.emit('action-error', 'เกมยังไม่เริ่ม');
+    if (publicRoom(room).currentTurnId !== socket.data.playerId) return socket.emit('action-error', 'เฉพาะผู้เล่นในเทิร์นเท่านั้นที่จบเทิร์นได้');
+    advanceTurn(room);
+    emitState(room.id);
   });
 
   socket.on('chat-send', message => {
-    const room = rooms.get(socket.data.roomId), player = room?.players.get(socket.id);
+    const { room, player } = playerFor(socket);
     const text = cleanText(message, 300);
-    if (player && text) io.to(socket.data.roomId).emit('chat-event', { name: player.name, text, at: Date.now() });
+    if (player && text) io.to(room.id).emit('chat-event', { name: player.name, text, at: Date.now() });
   });
 
   socket.on('disconnect', () => {
-    const roomId = socket.data.roomId, room = rooms.get(roomId);
-    if (!room) return;
-    const player = room.players.get(socket.id);
-    const removedIndex = room.order.indexOf(socket.id);
-    room.players.delete(socket.id);
-    room.order = room.order.filter(id => id !== socket.id);
-    if (removedIndex >= 0 && removedIndex < room.turnIndex) room.turnIndex--;
-    if (room.turnIndex >= room.order.length) room.turnIndex = 0;
-    if (player) io.to(roomId).emit('system-event', { text: `${player.name} ออกจากห้อง`, at: Date.now() });
-    if (!room.players.size) rooms.delete(roomId); else emitState(roomId);
+    const roomId = socket.data.roomId;
+    const playerId = socket.data.playerId;
+    const room = rooms.get(roomId);
+    const player = room?.players.get(playerId);
+    if (!room || !player || player.socketId !== socket.id) return;
+    player.online = false;
+    player.socketId = null;
+    player.disconnectedAt = Date.now();
+    if (room.started && room.order[room.turnIndex] === playerId) advanceTurn(room);
+    io.to(roomId).emit('system-event', { text: `${player.name} การเชื่อมต่อขาดหาย — รอกลับเข้าห้อง`, at: Date.now() });
+    emitState(roomId);
+
+    const disconnectedAt = player.disconnectedAt;
+    setTimeout(() => {
+      const currentRoom = rooms.get(roomId);
+      const currentPlayer = currentRoom?.players.get(playerId);
+      if (!currentRoom || !currentPlayer || currentPlayer.online || currentPlayer.disconnectedAt !== disconnectedAt) return;
+      currentRoom.players.delete(playerId);
+      currentRoom.order = currentRoom.order.filter(id => id !== playerId);
+      if (currentRoom.hostId === playerId) currentRoom.hostId = currentRoom.order[0] || null;
+      normalizeTurn(currentRoom);
+      if (!currentRoom.players.size) rooms.delete(roomId);
+      else emitState(roomId);
+    }, RECONNECT_GRACE_MS);
   });
 });
 
