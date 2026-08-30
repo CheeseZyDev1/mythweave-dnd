@@ -1,0 +1,11 @@
+node_modules/
+.edge-profile/
+*.log
+.env
+.env.*
+
+# Local visual QA captures are not needed in production.
+preview.png
+world-preview.png
+online-preview.png
+character-preview.png

@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: mythweave-dnd
+    runtime: node
+    plan: free
+    buildCommand: npm ci --omit=dev
+    startCommand: npm start
+    healthCheckPath: /health
+    autoDeploy: true

@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#081410" />
+  <title>Mythweave — D&D Online Tabletop</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="world.css" />
+</head>
+<body>
+  <div class="noise"></div>
+  <div id="toast" class="toast" aria-live="polite"></div>
+
+  <header class="topbar">
+    <a class="brand" href="#" aria-label="Mythweave home">
+      <span class="brand-mark">M</span>
+      <span><b>MYTHWEAVE</b><small>ONLINE TABLETOP</small></span>
+    </a>
+    <nav class="main-nav" aria-label="เมนูหลัก">
+      <button class="nav-item active" data-view="table">โต๊ะผจญภัย</button>
+      <button class="nav-item" data-view="world">แผนที่โลก</button>
+      <button class="nav-item" data-view="character">ตัวละคร</button>
+      <button class="nav-item" data-view="journal">บันทึก</button>
+    </nav>
+    <div class="room-tools">
+      <div class="online-pill"><i></i><span id="onlineCount">3</span> ออนไลน์</div>
+      <button class="icon-btn" id="soundBtn" title="ตั้งค่าเสียง">♪</button>
+      <button class="profile-btn" id="openCharacter"><span id="miniAvatar">A</span><span><b id="miniName">อาเรีย</b><small>ผู้เล่น</small></span></button>
+    </div>
+  </header>
+
+  <main>
+    <section class="view world-view" id="worldView">
+      <aside class="world-sidebar glass">
+        <span class="eyebrow">ดินแดนแห่งเอเธอเรีย</span>
+        <h1>แผนที่โลก</h1>
+        <p>เลือกจุดหมายแล้วออกเดินทาง เมื่อไปถึงโต๊ะผจญภัยจะเปลี่ยนเป็นฉากของพื้นที่นั้น</p>
+        <div class="current-location-card">
+          <span class="location-icon" id="currentLocationIcon">♧</span>
+          <div><small>ตำแหน่งปัจจุบัน</small><b id="currentLocationName">ป่าเอลเดอร์วูด</b></div>
+        </div>
+        <div class="world-legend">
+          <p><i class="legend-current"></i> ตำแหน่งปัจจุบัน</p>
+          <p><i class="legend-open"></i> เดินทางได้</p>
+          <p><i class="legend-visited"></i> สำรวจแล้ว</p>
+        </div>
+        <div class="journey-progress"><div><span>สำรวจโลก</span><b id="explorePercent">25%</b></div><i><em id="exploreBar" style="width:25%"></em></i></div>
+        <button class="primary-btn full" id="returnToScene">กลับสู่ฉากปัจจุบัน →</button>
+      </aside>
+      <div class="world-map-wrap">
+        <div class="world-title"><span class="eyebrow">เลือกเส้นทางต่อไป</span><h2>โลกกำลังรอการค้นพบ</h2></div>
+        <div class="world-map" id="worldMap">
+          <img src="assets/worldmap.png" alt="แผนที่โลกเอเธอเรีย">
+          <svg class="world-routes" viewBox="0 0 1000 665" preserveAspectRatio="none" aria-hidden="true">
+            <path d="M290 315 Q390 280 520 325"/><path d="M520 325 Q470 190 430 135"/><path d="M520 325 Q650 230 750 190"/><path d="M520 325 Q500 430 510 500"/><path d="M510 500 Q400 440 290 315"/>
+          </svg>
+          <div class="party-position-layer" id="partyPositionLayer"></div>
+          <div class="traveler-marker" id="travelerMarker"><span><img id="worldPlayerIcon" alt="ตัวละครของฉัน"></span><i></i></div>
+          <button class="world-node" data-location="elderwood" style="--x:29%;--y:47%"><span>♧</span><b>ป่าเอลเดอร์วูด</b><small>ป่าต้องมนตร์ · ระดับ 1–3</small></button>
+          <button class="world-node" data-location="nightcrown" style="--x:43%;--y:20%"><span>♜</span><b>ป้อมไนท์คราวน์</b><small>ที่มั่นแห่งเงา · ระดับ 5+</small></button>
+          <button class="world-node" data-location="azuredeep" style="--x:75%;--y:29%"><span>♦</span><b>ถ้ำอาซัวร์ดีพ</b><small>โพรงคริสตัล · ระดับ 3–5</small></button>
+          <button class="world-node" data-location="moonruins" style="--x:52%;--y:49%"><span>⌁</span><b>วิหารจันทรา</b><small>ซากอารยธรรม · ระดับ 2–4</small></button>
+          <button class="world-node" data-location="riverrest" style="--x:51%;--y:75%"><span>⌂</span><b>หมู่บ้านริเวอร์เรสต์</b><small>ชุมชนริมธาร · พื้นที่ปลอดภัย</small></button>
+          <div class="map-compass"><b>N</b><span>✥</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="view active" id="tableView">
+      <aside class="left-panel glass">
+        <div class="panel-heading">
+          <div><span class="eyebrow">คณะเดินทาง</span><h2>สมาชิกปาร์ตี้</h2></div>
+          <button class="add-btn" id="addBotBtn">＋ เพิ่มบอท</button>
+        </div>
+        <div class="party-list" id="partyList"></div>
+        <div class="invite-card">
+          <span class="rune">⌘</span>
+          <div><b>ชวนเพื่อนเข้าร่วม</b><small>รหัสห้อง <strong id="roomCode">MOON-742</strong></small></div>
+          <button id="copyInvite" title="คัดลอกลิงก์">⧉</button>
+        </div>
+        <div class="connection-note"><i></i> ห้องพร้อมรับผู้เล่น</div>
+      </aside>
+
+      <section class="game-stage">
+        <div class="quest-banner">
+          <div><span class="eyebrow" id="sceneChapter">บทที่ 1 · คืนเดือนดับ</span><h1 id="sceneTitle">เสียงกระซิบจากป่าเอลเดอร์วูด</h1></div>
+          <div class="round"><span>รอบที่</span><b id="roundNumber">03</b></div>
+        </div>
+        <div class="map-frame" id="mapFrame">
+          <img id="sceneImage" src="assets/elderwood.png" alt="แผนที่ป่าเอลเดอร์วูด" draggable="false" />
+          <div class="map-vignette"></div>
+          <div class="grid-overlay"></div>
+          <div class="map-label ruins" id="locationLabel1"><span>⌁</span> ซากวิหารเอลเดอร์</div>
+          <div class="map-label trail" id="locationLabel2"><span>♧</span> เส้นทางเก่า</div>
+          <button class="token token-1 selected" style="left:43%;top:58%" data-id="0"><span><img id="playerMapIcon" alt="ตัวละครของฉัน"></span><small id="playerTokenName">อาเรีย</small></button>
+          <button class="token token-2" style="left:51%;top:48%" data-id="1"><span>🧙🏽</span><small>ธีโอ</small></button>
+          <button class="token token-3" style="left:59%;top:62%" data-id="2"><span>🛡️</span><small>โบริน</small></button>
+          <div class="map-actions">
+            <button id="zoomOut">−</button><span id="zoomLevel">100%</span><button id="zoomIn">＋</button>
+            <button id="gridToggle" class="active">▦ กริด</button>
+            <button id="openWorldMap">🗺 โลก</button>
+          </div>
+          <div class="board-dice" id="boardDice" aria-live="polite"><div class="poly-die"><i></i><span id="boardDiceResult">20</span></div><div class="dice-result-card"><small id="boardDiceFormula">D20 + 2</small><b id="boardDiceOwner">อาเรียทอยได้ 22</b></div></div>
+          <div class="turn-card"><div class="turn-player"><img id="turnAvatar" alt="ผู้เล่นในเทิร์น"><span><small id="turnStatus">ถึงตาของคุณ</small><strong id="turnPlayerName">อาเรีย</strong></span></div><b id="turnTimer">01:28</b><button id="endTurn">จบเทิร์น →</button></div>
+        </div>
+      </section>
+
+      <aside class="right-panel glass">
+        <div class="panel-heading compact"><div><span class="eyebrow">เหตุการณ์</span><h2>บันทึกการเดินทาง</h2></div><button class="plain-btn" id="clearLog">ล้าง</button></div>
+        <div class="event-log" id="eventLog"></div>
+        <form class="chat-box" id="chatForm"><input id="chatInput" placeholder="ส่งข้อความถึงปาร์ตี้…" autocomplete="off"><button>➤</button></form>
+      </aside>
+
+      <section class="dice-dock glass">
+        <div class="dice-title"><span class="rune">✦</span><div><b>ทอยเต๋า</b><small>เลือกชนิดแล้วเสี่ยงชะตา</small></div></div>
+        <div class="dice-list" id="diceList">
+          <button data-sides="4">D4</button><button data-sides="6">D6</button><button data-sides="8">D8</button><button data-sides="10">D10</button><button data-sides="12">D12</button><button class="selected" data-sides="20">D20</button>
+        </div>
+        <div class="modifier"><button id="minusMod">−</button><span>โบนัส <b id="modifierValue">+2</b></span><button id="plusMod">＋</button></div>
+        <button class="roll-btn" id="rollDice"><span class="d20">20</span><span><small>กดเพื่อ</small>ทอย D20</span></button>
+      </section>
+    </section>
+
+    <section class="view creator-view" id="characterView">
+      <div class="creator-head"><div><span class="eyebrow">ห้องสร้างวีรบุรุษ</span><h1>ปลุกตำนานของคุณ</h1><p>ปรับแต่งรูปลักษณ์และตัวตน ก่อนก้าวเข้าสู่การผจญภัย</p></div><button class="primary-btn" id="saveCharacter">บันทึกตัวละคร ✦</button></div>
+      <div class="creator-grid">
+        <section class="avatar-studio glass">
+          <div class="stars"></div>
+          <div class="character-avatar body-average race-human" id="characterAvatar">
+            <div class="avatar-shadow"></div><div class="cape"></div><div class="body"></div><div class="neck"></div>
+            <div class="ear left"></div><div class="ear right"></div><div class="head"><div class="eyes"><i></i><i></i></div><div class="brows"></div><div class="nose"></div><div class="mouth"></div><div class="marking"></div></div>
+            <div class="hair hair-long"><i></i></div><div class="armor armor-ranger"><span>✦</span></div><div class="accessory accessory-none"></div>
+          </div>
+          <div class="avatar-caption"><span>ระดับ 3</span><h2 id="avatarNameDisplay">อาเรีย มูนเฟล</h2><p id="avatarSubtitle">มนุษย์ · เรนเจอร์</p></div>
+        </section>
+        <section class="customizer glass">
+          <div class="tabs" id="customTabs"><button class="active" data-tab="identity">ตัวตน</button><button data-tab="face">ใบหน้า</button><button data-tab="hair">ทรงผม</button><button data-tab="body">รูปร่าง</button><button data-tab="color">สีสัน</button></div>
+          <div class="tab-pane active" data-pane="identity">
+            <label class="field wide">ชื่อตัวละคร<input id="characterName" value="อาเรีย มูนเฟล" maxlength="28"></label>
+            <div class="control-group"><label>เผ่าพันธุ์</label><div class="option-cards" id="raceOptions">
+              <button class="selected" data-value="human"><span>◉</span><b>มนุษย์</b><small>ยืดหยุ่น รอบรู้</small></button><button data-value="elf"><span>♢</span><b>เอลฟ์</b><small>ว่องไว สายตาดี</small></button><button data-value="dwarf"><span>⬡</span><b>คนแคระ</b><small>แข็งแกร่ง ทนทาน</small></button><button data-value="tiefling"><span>♈</span><b>ทีฟลิง</b><small>ลึกลับ มีเสน่ห์</small></button>
+            </div></div>
+            <div class="control-group"><label>อาชีพ</label><div class="select-wrap"><select id="classSelect"><option>เรนเจอร์</option><option>นักรบ</option><option>พ่อมด</option><option>โร้ก</option><option>บาร์ด</option><option>พาลาดิน</option></select></div></div>
+          </div>
+          <div class="tab-pane" data-pane="face"><div class="control-group"><label>โครงหน้า</label><div class="visual-options" id="faceOptions"><button class="selected" data-value="soft">ละมุน</button><button data-value="sharp">คม</button><button data-value="round">กลม</button></div></div><div class="control-group"><label>แววตา</label><div class="visual-options" id="eyeOptions"><button class="selected" data-value="calm">สุขุม</button><button data-value="fierce">เด็ดเดี่ยว</button><button data-value="mystic">เรืองแสง</button></div></div><div class="control-group"><label>ลวดลายบนใบหน้า</label><div class="visual-options" id="markOptions"><button class="selected" data-value="none">ไม่มี</button><button data-value="scar">รอยแผล</button><button data-value="rune">รูน</button></div></div><div class="control-group"><label>เครื่องประดับ</label><div class="visual-options" id="accessoryOptions"><button class="selected" data-value="none">ไม่มี</button><button data-value="circlet">มงกุฎเงิน</button><button data-value="earring">ต่างหู</button></div></div></div>
+          <div class="tab-pane" data-pane="hair"><div class="control-group"><label>ทรงผม</label><div class="hair-options" id="hairOptions"><button data-value="short"><i class="hair-thumb short"></i><span>ผมสั้น</span></button><button class="selected" data-value="long"><i class="hair-thumb long"></i><span>ผมยาว</span></button><button data-value="braid"><i class="hair-thumb braid"></i><span>ถักเปีย</span></button><button data-value="mohawk"><i class="hair-thumb mohawk"></i><span>โมฮอว์ก</span></button></div></div></div>
+          <div class="tab-pane" data-pane="body"><div class="control-group"><label>รูปร่าง</label><div class="visual-options" id="bodyOptions"><button data-value="slim">เพรียว</button><button class="selected" data-value="average">สมส่วน</button><button data-value="strong">กำยำ</button></div></div><div class="control-group"><label>เครื่องแต่งกาย</label><div class="outfit-options" id="outfitOptions"><button class="selected" data-value="ranger"><span>✦</span><b>เรนเจอร์</b></button><button data-value="knight"><span>♜</span><b>อัศวิน</b></button><button data-value="mage"><span>◇</span><b>จอมเวท</b></button></div></div><label class="range-field">ส่วนสูง <input id="heightRange" type="range" min="145" max="205" value="172"><output id="heightOutput">172 ซม.</output></label></div>
+          <div class="tab-pane" data-pane="color"><div class="control-group"><label>สีผม</label><div class="swatches" id="hairColors"><button style="--swatch:#2a1711" data-value="#2a1711" class="selected"></button><button style="--swatch:#d2ae63" data-value="#d2ae63"></button><button style="--swatch:#9c463e" data-value="#9c463e"></button><button style="--swatch:#d9dde4" data-value="#d9dde4"></button><button style="--swatch:#242936" data-value="#242936"></button><button style="--swatch:#573b74" data-value="#573b74"></button></div></div><div class="control-group"><label>สีผิว</label><div class="swatches" id="skinColors"><button style="--swatch:#f1c6a8" data-value="#f1c6a8" class="selected"></button><button style="--swatch:#d99b77" data-value="#d99b77"></button><button style="--swatch:#a76549" data-value="#a76549"></button><button style="--swatch:#6e4136" data-value="#6e4136"></button><button style="--swatch:#bb8dac" data-value="#bb8dac"></button></div></div><div class="control-group"><label>สีดวงตา</label><div class="swatches small" id="eyeColors"><button style="--swatch:#426e58" data-value="#426e58" class="selected"></button><button style="--swatch:#5a82b8" data-value="#5a82b8"></button><button style="--swatch:#b68b3f" data-value="#b68b3f"></button><button style="--swatch:#a867c8" data-value="#a867c8"></button></div></div><div class="control-group"><label>สีชุด</label><div class="swatches small" id="outfitColors"><button style="--swatch:#315744" data-value="#315744" class="selected"></button><button style="--swatch:#354969" data-value="#354969"></button><button style="--swatch:#6b3544" data-value="#6b3544"></button><button style="--swatch:#6c5936" data-value="#6c5936"></button></div></div></div>
+        </section>
+        <aside class="sheet-card glass"><span class="eyebrow">ค่าสถานะ</span><h2>Character Sheet</h2><div class="stat-grid"><div><b>14</b><small>STR</small></div><div><b>16</b><small>DEX</small></div><div><b>13</b><small>CON</small></div><div><b>12</b><small>INT</small></div><div><b>15</b><small>WIS</small></div><div><b>10</b><small>CHA</small></div></div><div class="vitals"><p><span>HP</span><b>24 / 24</b></p><i><em style="width:100%"></em></i><p><span>เกราะ</span><b>15 AC</b></p><p><span>ความเร็ว</span><b>30 ft.</b></p></div></aside>
+      </div>
+    </section>
+
+    <section class="view journal-view" id="journalView"><div class="journal-paper"><span class="eyebrow">บันทึกแคมเปญ</span><h1>เสียงกระซิบจากป่าเอลเดอร์วูด</h1><p class="date">คืนที่ 3 แห่งจันทราดับ</p><textarea id="journalText" placeholder="จดสิ่งที่เกิดขึ้น เบาะแส หรือแผนการผจญภัยไว้ที่นี่…"></textarea><div class="journal-actions"><span id="saveStatus">บันทึกอัตโนมัติแล้ว</span><button class="primary-btn" id="saveJournal">บันทึกตอนนี้</button></div></div></section>
+  </main>
+
+  <div class="modal" id="botModal" aria-hidden="true"><div class="modal-card glass"><button class="modal-close" data-close>×</button><span class="eyebrow">ผู้ร่วมทาง AI</span><h2>เพิ่มนักผจญภัยบอท</h2><p>บอทจะช่วยเติมปาร์ตี้และตอบสนองอัตโนมัติระหว่างการเล่น</p><div class="bot-choices"><button class="selected" data-bot="Lyra" data-role="Cleric"><span>🧝🏼‍♀️</span><b>ไลรา</b><small>คลีริก · ผู้รักษา</small></button><button data-bot="Grimm" data-role="Rogue"><span>🥷</span><b>กริมม์</b><small>โร้ก · จู่โจม</small></button><button data-bot="Ember" data-role="Sorcerer"><span>🧙🏼‍♀️</span><b>เอ็มเบอร์</b><small>ซอร์เซอเรอร์ · เวทมนตร์</small></button></div><button class="primary-btn full" id="confirmBot">เพิ่มเข้าปาร์ตี้</button></div></div>
+  <div class="modal join-modal" id="joinModal" aria-hidden="true">
+    <div class="modal-card join-card glass">
+      <div id="joinStage">
+        <span class="join-emblem">M</span><span class="eyebrow">MYTHWEAVE ONLINE</span><h2>เข้าร่วมการผจญภัย</h2><p>ตั้งชื่อและเลือกรูปแบบแคมเปญ ผู้เล่นคนแรกจะเป็นโฮสต์ของห้อง</p>
+        <label class="join-field">ชื่อผู้เล่น<input id="joinName" maxlength="28" autocomplete="nickname" placeholder="เช่น กิ๊ฟ"></label>
+        <div class="session-choices" id="sessionChoices"><button class="selected" data-mode="new"><span>✦</span><b>เริ่มการผจญภัยใหม่</b><small>เริ่มจากป่าเอลเดอร์วูด</small></button><button data-mode="resume"><span>↻</span><b>เล่นต่อจากเซฟ</b><small>ใช้แคมเปญล่าสุดของโฮสต์</small></button></div>
+        <div class="join-room"><span>รหัสห้อง</span><b id="joinRoomCode">MOON-742</b><i>● พร้อมเชื่อมต่อ</i></div>
+        <button class="primary-btn full" id="joinConfirm">เข้าสู่ล็อบบี้ →</button>
+        <button class="offline-link" id="joinOffline">ทดลองเล่นออฟไลน์</button><small class="wake-note">หากเป็นการเปิดห้องครั้งแรก อาจใช้เวลาปลุกเซิร์ฟเวอร์ฟรีประมาณหนึ่งนาที</small>
+      </div>
+      <div id="lobbyStage" class="lobby-stage">
+        <div class="lobby-head"><span class="join-emblem small-emblem">M</span><div><span class="eyebrow">ห้อง <b id="lobbyRoomCode">MOON-742</b></span><h2>รวมคณะเดินทาง</h2></div></div>
+        <div class="campaign-badge"><span id="lobbyModeIcon">✦</span><div><small>แคมเปญ</small><b id="lobbyModeText">การผจญภัยใหม่</b></div></div>
+        <div class="lobby-players" id="lobbyPlayers"></div>
+        <p class="ready-hint" id="readyHint">กดพร้อมเมื่อจัดตัวละครเสร็จแล้ว</p>
+        <button class="ready-btn" id="readyBtn">✓ ฉันพร้อมแล้ว</button>
+        <button class="primary-btn full host-start" id="startGameBtn" disabled>รอผู้เล่นทุกคนพร้อม…</button>
+      </div>
+    </div>
+  </div>
+  <div class="modal" id="soundModal" aria-hidden="true">
+    <div class="modal-card sound-card glass">
+      <button class="modal-close" id="closeSound">×</button>
+      <span class="eyebrow">เสียงแห่งการผจญภัย</span><h2>ตั้งค่าเสียง</h2><p>ปรับเสียงบรรยากาศและเอฟเฟกต์แยกกันได้ การตั้งค่าจะถูกบันทึกอัตโนมัติ</p>
+      <button class="sound-master" id="masterToggle"><span id="soundToggleIcon">♪</span><div><b id="soundToggleLabel">เปิดเสียง</b><small id="soundSceneLabel">บรรยากาศป่าเอลเดอร์วูด</small></div><i></i></button>
+      <div class="sound-sliders">
+        <label><span>เสียงรวม <output id="masterOutput">70%</output></span><input id="masterVolume" type="range" min="0" max="100" value="70"></label>
+        <label><span>เสียงบรรยากาศ <output id="ambientOutput">45%</output></span><input id="ambientVolume" type="range" min="0" max="100" value="45"></label>
+        <label><span>เสียงเอฟเฟกต์ <output id="effectsOutput">75%</output></span><input id="effectsVolume" type="range" min="0" max="100" value="75"></label>
+      </div>
+      <div class="sound-presets" id="soundPresets"><button class="selected" data-sound="auto">✦ ตามสถานที่</button><button data-sound="forest">♧ ป่า</button><button data-sound="rain">☂ พายุ</button><button data-sound="tavern">⌂ หมู่บ้าน</button><button data-sound="cave">♦ ถ้ำ</button></div>
+      <button class="primary-btn full" id="testSound">ทดลองเสียงเอฟเฟกต์</button>
+    </div>
+  </div>
+  <div class="dice-overlay" id="diceOverlay"><div class="rolling-die"><span id="rollResult">20</span></div><p id="rollLabel">D20 + 2</p></div>
+  <div class="travel-overlay" id="travelOverlay"><div class="travel-crest">✦</div><span>กำลังออกเดินทาง</span><h2 id="travelDestination">ป่าเอลเดอร์วูด</h2><div class="travel-line"><i></i></div></div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
