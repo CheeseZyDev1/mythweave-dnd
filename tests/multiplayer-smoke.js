@@ -79,10 +79,17 @@ async function run() {
   assert.equal(reconnectResult.reconnected, true);
   await waitForMatching(host, 'room-state', state => state.players.length === 2 && state.players.every(player => player.online));
 
+  checkpoint = 'adding a host-controlled bot';
+  const stateWithBot = waitForMatching(host, 'room-state', state => state.players.length === 3 && state.players.some(player => player.isBot));
+  host.emit('add-bot', { key: 'Lyra', location: 'elderwood' });
+  const botState = await stateWithBot;
+  const botId = botState.players.find(player => player.isBot).id;
+  assert.equal(botState.players.find(player => player.id === botId).ready, true);
+
   checkpoint = 'readying all players';
   host.emit('player-ready', true);
   reconnectedGuest.emit('player-ready', true);
-  await waitForMatching(host, 'room-state', state => state.players.length === 2 && state.players.every(player => player.ready));
+  await waitForMatching(host, 'room-state', state => state.players.length === 3 && state.players.every(player => player.ready));
   checkpoint = 'starting the game';
   const startedHost = waitFor(host, 'game-started');
   const startedGuest = waitFor(reconnectedGuest, 'game-started');
@@ -102,7 +109,16 @@ async function run() {
   host.emit('end-turn');
   latestState = await nextTurn;
   assert.equal(latestState.currentTurnId, guestClientId);
-  console.log(`PASS: private room ${hostRoom.roomId}; rejected unknown room; reconnect kept identity; both clients saw roll ${seenByHost.total}`);
+
+  checkpoint = 'running the bot turn';
+  const botTurn = waitForMatching(host, 'room-state', state => state.currentTurnId === botId);
+  const botRoll = waitFor(host, 'dice-rolled');
+  reconnectedGuest.emit('end-turn');
+  await botTurn;
+  const botResult = await botRoll;
+  assert.equal(botResult.rollerId, botId);
+  await waitForMatching(host, 'room-state', state => state.currentTurnId === hostRoom.selfId);
+  console.log(`PASS: private room ${hostRoom.roomId}; permissions and reconnect passed; synced roll ${seenByHost.total}; bot rolled ${botResult.total}`);
 }
 
 run()

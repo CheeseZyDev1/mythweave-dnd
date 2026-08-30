@@ -12,6 +12,11 @@ const ROOM_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const ROOM_CODE_PATTERN = /^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/;
 const MAX_PLAYERS = 8;
 const RECONNECT_GRACE_MS = 2 * 60 * 1000;
+const BOT_TEMPLATES = {
+  Lyra: { name: 'ไลรา', role: 'คลีริก · AI', icon: '🧝🏼‍♀️', modifier: 3 },
+  Grimm: { name: 'กริมม์', role: 'โร้ก · AI', icon: '🥷', modifier: 4 },
+  Ember: { name: 'เอ็มเบอร์', role: 'ซอร์เซอเรอร์ · AI', icon: '🧙🏼‍♀️', modifier: 3 }
+};
 
 app.use(express.static(__dirname, { extensions: ['html'] }));
 app.get('/health', (_req, res) => res.json({ ok: true, rooms: rooms.size }));
@@ -91,7 +96,10 @@ function publicRoom(room) {
   normalizeTurn(room);
   if (!room.hostId || !room.players.has(room.hostId)) room.hostId = room.order[0] || null;
   return {
-    players: room.order.map(id => room.players.get(id)),
+    players: room.order.map(id => {
+      const player = room.players.get(id);
+      return { id: player.id, name: player.name, iconData: player.iconData, icon: player.icon, location: player.location, online: player.online, ready: player.ready, isBot: Boolean(player.isBot), bot: Boolean(player.isBot), role: player.role || 'ผู้เล่นออนไลน์' };
+    }),
     currentTurnId: room.order[room.turnIndex] || null,
     hostId: room.hostId,
     mode: room.mode,
@@ -169,6 +177,30 @@ function advanceTurn(room) {
   }
 }
 
+function maybeRunBot(roomId) {
+  const room = rooms.get(roomId);
+  if (!room?.started) return;
+  clearTimeout(room.botTimer);
+  normalizeTurn(room);
+  const bot = room.players.get(room.order[room.turnIndex]);
+  if (!bot?.isBot) return;
+  room.botTimer = setTimeout(() => {
+    const currentRoom = rooms.get(roomId);
+    if (!currentRoom?.started || currentRoom.order[currentRoom.turnIndex] !== bot.id) return;
+    const raw = crypto.randomInt(1, 21);
+    const result = { id: `${Date.now()}-${bot.id}`, rollerId: bot.id, rollerName: bot.name, iconData: '', sides: 20, modifier: bot.modifier || 2, raw, total: raw + (bot.modifier || 2), at: Date.now() };
+    currentRoom.history.push(result);
+    io.to(roomId).emit('dice-rolled', result);
+    setTimeout(() => {
+      const activeRoom = rooms.get(roomId);
+      if (!activeRoom?.started || activeRoom.order[activeRoom.turnIndex] !== bot.id) return;
+      advanceTurn(activeRoom);
+      emitState(roomId);
+      maybeRunBot(roomId);
+    }, 1200);
+  }, 900);
+}
+
 io.on('connection', socket => {
   socket.on('create-room', payload => {
     if (!rateLimitRoomAttempts(socket)) return roomError(socket, 'RATE_LIMIT', 'สร้างห้องถี่เกินไป กรุณารอสักครู่');
@@ -203,6 +235,30 @@ io.on('connection', socket => {
     emitState(room.id);
   });
 
+  socket.on('add-bot', payload => {
+    const { room, player } = playerFor(socket);
+    if (!room || !player || room.hostId !== player.id) return socket.emit('action-error', 'เฉพาะหัวปาร์ตี้เท่านั้นที่เพิ่มบอทได้');
+    if (room.started) return socket.emit('action-error', 'เพิ่มบอทได้เฉพาะในล็อบบี้');
+    if (room.players.size >= MAX_PLAYERS) return socket.emit('action-error', 'ห้องนี้มีสมาชิกครบแล้ว');
+    const template = BOT_TEMPLATES[cleanText(payload?.key, 20)] || BOT_TEMPLATES.Lyra;
+    if ([...room.players.values()].some(member => member.isBot && member.name === template.name)) return socket.emit('action-error', 'บอทคนนี้อยู่ในปาร์ตี้แล้ว');
+    const id = `bot-${crypto.randomUUID()}`;
+    room.players.set(id, { id, clientId: id, socketId: null, name: template.name, role: template.role, icon: template.icon, iconData: '', location: cleanText(payload?.location, 24) || player.location, online: true, ready: true, isBot: true, modifier: template.modifier, disconnectedAt: null });
+    room.order.push(id);
+    io.to(room.id).emit('system-event', { text: `${template.name} · AI เข้าร่วมคณะเดินทาง`, at: Date.now() });
+    emitState(room.id);
+  });
+
+  socket.on('remove-bot', botId => {
+    const { room, player } = playerFor(socket);
+    const bot = room?.players.get(cleanText(botId, 80));
+    if (!room || !player || room.hostId !== player.id || !bot?.isBot || room.started) return;
+    room.players.delete(bot.id);
+    room.order = room.order.filter(id => id !== bot.id);
+    normalizeTurn(room);
+    emitState(room.id);
+  });
+
   socket.on('start-game', () => {
     const { room, player } = playerFor(socket);
     if (!room || !player || room.hostId !== socket.data.playerId) return socket.emit('action-error', 'เฉพาะหัวปาร์ตี้เท่านั้นที่เริ่มเกมได้');
@@ -213,6 +269,7 @@ io.on('connection', socket => {
     normalizeTurn(room);
     io.to(room.id).emit('game-started', { mode: room.mode, campaign: room.campaign });
     emitState(room.id);
+    maybeRunBot(room.id);
   });
 
   socket.on('roll-request', payload => {
@@ -234,6 +291,7 @@ io.on('connection', socket => {
     if (publicRoom(room).currentTurnId !== socket.data.playerId) return socket.emit('action-error', 'เฉพาะผู้เล่นในเทิร์นเท่านั้นที่จบเทิร์นได้');
     advanceTurn(room);
     emitState(room.id);
+    maybeRunBot(room.id);
   });
 
   socket.on('chat-send', message => {

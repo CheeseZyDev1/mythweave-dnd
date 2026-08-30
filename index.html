@@ -28,6 +28,7 @@
     </nav>
     <div class="room-tools">
       <div class="online-pill"><i></i><span id="onlineCount">3</span> ออนไลน์</div>
+      <button class="icon-btn" id="saveBtn" title="จัดการเซฟ">♜</button>
       <button class="icon-btn" id="soundBtn" title="ตั้งค่าเสียง">♪</button>
       <button class="profile-btn" id="openCharacter"><span id="miniAvatar">A</span><span><b id="miniName">อาเรีย</b><small>ผู้เล่น</small></span></button>
     </div>
@@ -47,6 +48,12 @@
           <p><i class="legend-current"></i> ตำแหน่งปัจจุบัน</p>
           <p><i class="legend-open"></i> เดินทางได้</p>
           <p><i class="legend-visited"></i> สำรวจแล้ว</p>
+        </div>
+        <div class="destination-card" id="destinationCard">
+          <div class="destination-head"><span id="destinationIcon">♧</span><div><small>จุดหมายที่เลือก</small><b id="destinationName">ป่าเอลเดอร์วูด</b></div></div>
+          <p id="destinationDescription">ผืนป่าต้องมนตร์ที่หมอกสีเงินไม่เคยจางหาย</p>
+          <div class="destination-meta"><span id="destinationDanger">ความเสี่ยง · ต่ำ</span><span id="destinationDistance">ระยะทาง · ปัจจุบัน</span></div>
+          <button class="primary-btn full" id="confirmTravel" disabled>คุณอยู่ที่นี่แล้ว</button>
         </div>
         <div class="journey-progress"><div><span>สำรวจโลก</span><b id="explorePercent">25%</b></div><i><em id="exploreBar" style="width:25%"></em></i></div>
         <button class="primary-btn full" id="returnToScene">กลับสู่ฉากปัจจุบัน →</button>
@@ -96,6 +103,7 @@
           <div class="grid-overlay"></div>
           <div class="map-label ruins" id="locationLabel1"><span>⌁</span> ซากวิหารเอลเดอร์</div>
           <div class="map-label trail" id="locationLabel2"><span>♧</span> เส้นทางเก่า</div>
+          <div class="objective-card"><span class="eyebrow">เป้าหมายปัจจุบัน</span><b id="objectiveTitle">ตามหาเสียงกระซิบในซากวิหาร</b><small id="objectiveProgress">เบาะแส 1 / 3 · รางวัล 240 XP</small><i><em id="objectiveBar" style="width:33%"></em></i></div>
           <button class="token token-1 selected" style="left:43%;top:58%" data-id="0"><span><img id="playerMapIcon" alt="ตัวละครของฉัน"></span><small id="playerTokenName">อาเรีย</small></button>
           <button class="token token-2" style="left:51%;top:48%" data-id="1"><span>🧙🏽</span><small>ธีโอ</small></button>
           <button class="token token-3" style="left:59%;top:62%" data-id="2"><span>🛡️</span><small>โบริน</small></button>
@@ -126,7 +134,7 @@
     </section>
 
     <section class="view creator-view" id="characterView">
-      <div class="creator-head"><div><span class="eyebrow">ห้องสร้างวีรบุรุษ</span><h1>ปลุกตำนานของคุณ</h1><p>ปรับแต่งรูปลักษณ์และตัวตน ก่อนก้าวเข้าสู่การผจญภัย</p></div><button class="primary-btn" id="saveCharacter">บันทึกตัวละคร ✦</button></div>
+      <div class="creator-head"><div><span class="eyebrow">ห้องสร้างวีรบุรุษ</span><h1>ปลุกตำนานของคุณ</h1><p>ปรับแต่งรูปลักษณ์และตัวตน ก่อนก้าวเข้าสู่การผจญภัย</p></div><div class="creator-actions"><button class="secondary-btn" id="randomCharacter">⚄ สุ่มรูปลักษณ์</button><button class="primary-btn" id="saveCharacter">บันทึกตัวละคร ✦</button></div></div>
       <div class="creator-grid">
         <section class="avatar-studio glass">
           <div class="stars"></div>
@@ -145,20 +153,22 @@
               <button class="selected" data-value="human"><span>◉</span><b>มนุษย์</b><small>ยืดหยุ่น รอบรู้</small></button><button data-value="elf"><span>♢</span><b>เอลฟ์</b><small>ว่องไว สายตาดี</small></button><button data-value="dwarf"><span>⬡</span><b>คนแคระ</b><small>แข็งแกร่ง ทนทาน</small></button><button data-value="tiefling"><span>♈</span><b>ทีฟลิง</b><small>ลึกลับ มีเสน่ห์</small></button>
             </div></div>
             <div class="control-group"><label>อาชีพ</label><div class="select-wrap"><select id="classSelect"><option>เรนเจอร์</option><option>นักรบ</option><option>พ่อมด</option><option>โร้ก</option><option>บาร์ด</option><option>พาลาดิน</option></select></div></div>
+            <div class="control-group identity-row"><label>ภูมิหลัง</label><div class="select-wrap"><select id="backgroundSelect"><option>นักสำรวจพเนจร</option><option>วีรชนพื้นบ้าน</option><option>นักปราชญ์</option><option>ขุนนางตกอับ</option><option>ทหารรับจ้าง</option></select></div></div>
           </div>
           <div class="tab-pane" data-pane="face"><div class="control-group"><label>โครงหน้า</label><div class="visual-options" id="faceOptions"><button class="selected" data-value="soft">ละมุน</button><button data-value="sharp">คม</button><button data-value="round">กลม</button></div></div><div class="control-group"><label>แววตา</label><div class="visual-options" id="eyeOptions"><button class="selected" data-value="calm">สุขุม</button><button data-value="fierce">เด็ดเดี่ยว</button><button data-value="mystic">เรืองแสง</button></div></div><div class="control-group"><label>ลวดลายบนใบหน้า</label><div class="visual-options" id="markOptions"><button class="selected" data-value="none">ไม่มี</button><button data-value="scar">รอยแผล</button><button data-value="rune">รูน</button></div></div><div class="control-group"><label>เครื่องประดับ</label><div class="visual-options" id="accessoryOptions"><button class="selected" data-value="none">ไม่มี</button><button data-value="circlet">มงกุฎเงิน</button><button data-value="earring">ต่างหู</button></div></div></div>
           <div class="tab-pane" data-pane="hair"><div class="control-group"><label>ทรงผม</label><div class="hair-options" id="hairOptions"><button data-value="short"><i class="hair-thumb short"></i><span>ผมสั้น</span></button><button class="selected" data-value="long"><i class="hair-thumb long"></i><span>ผมยาว</span></button><button data-value="braid"><i class="hair-thumb braid"></i><span>ถักเปีย</span></button><button data-value="mohawk"><i class="hair-thumb mohawk"></i><span>โมฮอว์ก</span></button></div></div></div>
           <div class="tab-pane" data-pane="body"><div class="control-group"><label>รูปร่าง</label><div class="visual-options" id="bodyOptions"><button data-value="slim">เพรียว</button><button class="selected" data-value="average">สมส่วน</button><button data-value="strong">กำยำ</button></div></div><div class="control-group"><label>เครื่องแต่งกาย</label><div class="outfit-options" id="outfitOptions"><button class="selected" data-value="ranger"><span>✦</span><b>เรนเจอร์</b></button><button data-value="knight"><span>♜</span><b>อัศวิน</b></button><button data-value="mage"><span>◇</span><b>จอมเวท</b></button></div></div><label class="range-field">ส่วนสูง <input id="heightRange" type="range" min="145" max="205" value="172"><output id="heightOutput">172 ซม.</output></label></div>
           <div class="tab-pane" data-pane="color"><div class="control-group"><label>สีผม</label><div class="swatches" id="hairColors"><button style="--swatch:#2a1711" data-value="#2a1711" class="selected"></button><button style="--swatch:#d2ae63" data-value="#d2ae63"></button><button style="--swatch:#9c463e" data-value="#9c463e"></button><button style="--swatch:#d9dde4" data-value="#d9dde4"></button><button style="--swatch:#242936" data-value="#242936"></button><button style="--swatch:#573b74" data-value="#573b74"></button></div></div><div class="control-group"><label>สีผิว</label><div class="swatches" id="skinColors"><button style="--swatch:#f1c6a8" data-value="#f1c6a8" class="selected"></button><button style="--swatch:#d99b77" data-value="#d99b77"></button><button style="--swatch:#a76549" data-value="#a76549"></button><button style="--swatch:#6e4136" data-value="#6e4136"></button><button style="--swatch:#bb8dac" data-value="#bb8dac"></button></div></div><div class="control-group"><label>สีดวงตา</label><div class="swatches small" id="eyeColors"><button style="--swatch:#426e58" data-value="#426e58" class="selected"></button><button style="--swatch:#5a82b8" data-value="#5a82b8"></button><button style="--swatch:#b68b3f" data-value="#b68b3f"></button><button style="--swatch:#a867c8" data-value="#a867c8"></button></div></div><div class="control-group"><label>สีชุด</label><div class="swatches small" id="outfitColors"><button style="--swatch:#315744" data-value="#315744" class="selected"></button><button style="--swatch:#354969" data-value="#354969"></button><button style="--swatch:#6b3544" data-value="#6b3544"></button><button style="--swatch:#6c5936" data-value="#6c5936"></button></div></div></div>
         </section>
-        <aside class="sheet-card glass"><span class="eyebrow">ค่าสถานะ</span><h2>Character Sheet</h2><div class="stat-grid"><div><b>14</b><small>STR</small></div><div><b>16</b><small>DEX</small></div><div><b>13</b><small>CON</small></div><div><b>12</b><small>INT</small></div><div><b>15</b><small>WIS</small></div><div><b>10</b><small>CHA</small></div></div><div class="vitals"><p><span>HP</span><b>24 / 24</b></p><i><em style="width:100%"></em></i><p><span>เกราะ</span><b>15 AC</b></p><p><span>ความเร็ว</span><b>30 ft.</b></p></div></aside>
+        <aside class="sheet-card glass"><span class="eyebrow">ค่าสถานะ</span><h2>Character Sheet</h2><p class="point-budget">แต้มคงเหลือ <b id="statPoints">4</b></p><div class="stat-grid editable" id="statGrid"><div data-stat="str"><button data-step="-1">−</button><b>14</b><small>STR</small><button data-step="1">＋</button></div><div data-stat="dex"><button data-step="-1">−</button><b>16</b><small>DEX</small><button data-step="1">＋</button></div><div data-stat="con"><button data-step="-1">−</button><b>13</b><small>CON</small><button data-step="1">＋</button></div><div data-stat="int"><button data-step="-1">−</button><b>12</b><small>INT</small><button data-step="1">＋</button></div><div data-stat="wis"><button data-step="-1">−</button><b>15</b><small>WIS</small><button data-step="1">＋</button></div><div data-stat="cha"><button data-step="-1">−</button><b>10</b><small>CHA</small><button data-step="1">＋</button></div></div><div class="vitals"><p><span>HP</span><b id="sheetHp">24 / 24</b></p><i><em id="sheetHpBar" style="width:100%"></em></i><p><span>เกราะ</span><b id="sheetAc">15 AC</b></p><p><span>ความเร็ว</span><b>30 ft.</b></p></div></aside>
       </div>
     </section>
 
-    <section class="view journal-view" id="journalView"><div class="journal-paper"><span class="eyebrow">บันทึกแคมเปญ</span><h1>เสียงกระซิบจากป่าเอลเดอร์วูด</h1><p class="date">คืนที่ 3 แห่งจันทราดับ</p><textarea id="journalText" placeholder="จดสิ่งที่เกิดขึ้น เบาะแส หรือแผนการผจญภัยไว้ที่นี่…"></textarea><div class="journal-actions"><span id="saveStatus">บันทึกอัตโนมัติแล้ว</span><button class="primary-btn" id="saveJournal">บันทึกตอนนี้</button></div></div></section>
+    <section class="view journal-view" id="journalView"><div class="journal-shell"><header class="journal-header"><div><span class="eyebrow">ศูนย์บันทึกแคมเปญ</span><h1>พงศาวดารแห่งเอเธอเรีย</h1><p>บันทึกเรื่องราว ติดตามภารกิจ และเก็บจุดเซฟสำหรับเล่นต่อ</p></div><button class="primary-btn" id="openSaveManager">จัดการจุดเซฟ ♜</button></header><div class="journal-grid"><div class="journal-paper"><span class="eyebrow">บันทึกการเดินทาง</span><h2 id="journalChapterTitle">เสียงกระซิบจากป่าเอลเดอร์วูด</h2><p class="date" id="journalDate">รอบที่ 3 · ป่าเอลเดอร์วูด</p><textarea id="journalText" placeholder="จดสิ่งที่เกิดขึ้น เบาะแส หรือแผนการผจญภัยไว้ที่นี่…"></textarea><div class="journal-actions"><span id="saveStatus">บันทึกอัตโนมัติแล้ว</span><button class="primary-btn" id="saveJournal">บันทึกตอนนี้</button></div></div><aside class="quest-journal glass"><span class="eyebrow">ภารกิจ</span><h2>เป้าหมายของคณะ</h2><div id="questChecklist" class="quest-checklist"></div><div class="campaign-summary"><p><span>สำรวจแล้ว</span><b id="journalExplore">1 / 5 พื้นที่</b></p><p><span>รอบปัจจุบัน</span><b id="journalRound">03</b></p><p><span>สมาชิก</span><b id="journalParty">3 คน</b></p></div></aside></div></div></section>
   </main>
 
   <div class="modal" id="botModal" aria-hidden="true"><div class="modal-card glass"><button class="modal-close" data-close>×</button><span class="eyebrow">ผู้ร่วมทาง AI</span><h2>เพิ่มนักผจญภัยบอท</h2><p>บอทจะช่วยเติมปาร์ตี้และตอบสนองอัตโนมัติระหว่างการเล่น</p><div class="bot-choices"><button class="selected" data-bot="Lyra" data-role="Cleric"><span>🧝🏼‍♀️</span><b>ไลรา</b><small>คลีริก · ผู้รักษา</small></button><button data-bot="Grimm" data-role="Rogue"><span>🥷</span><b>กริมม์</b><small>โร้ก · จู่โจม</small></button><button data-bot="Ember" data-role="Sorcerer"><span>🧙🏼‍♀️</span><b>เอ็มเบอร์</b><small>ซอร์เซอเรอร์ · เวทมนตร์</small></button></div><button class="primary-btn full" id="confirmBot">เพิ่มเข้าปาร์ตี้</button></div></div>
+  <div class="modal" id="saveModal" aria-hidden="true"><div class="modal-card save-card glass"><button class="modal-close" id="closeSaveModal">×</button><span class="eyebrow">คลังความทรงจำ</span><h2>จุดเซฟแคมเปญ</h2><p>บันทึกความคืบหน้าไว้หลายช่วง โหลดกลับมาเล่นต่อ หรือส่งออกเป็นไฟล์สำรอง</p><div class="save-slots" id="saveSlots"></div><div class="save-tools"><button class="secondary-btn" id="exportSave">⇩ ส่งออกไฟล์เซฟ</button><label class="secondary-btn import-save">⇧ นำเข้าไฟล์เซฟ<input id="importSave" type="file" accept="application/json"></label></div></div></div>
   <div class="modal join-modal" id="joinModal" aria-hidden="true">
     <div class="modal-card join-card glass">
       <div id="joinStage">
@@ -176,6 +186,7 @@
         <div class="lobby-invite"><div><small>รหัสเชิญ</small><b id="lobbyRoomCode">----</b></div><button id="lobbyCopyInvite">⧉ คัดลอกลิงก์</button></div>
         <div class="campaign-badge"><span id="lobbyModeIcon">✦</span><div><small>แคมเปญ</small><b id="lobbyModeText">การผจญภัยใหม่</b></div></div>
         <div class="lobby-players" id="lobbyPlayers"></div>
+        <button class="lobby-bot-btn" id="lobbyAddBot">＋ เพิ่มผู้ร่วมทาง AI</button>
         <p class="ready-hint" id="readyHint">กดพร้อมเมื่อจัดตัวละครเสร็จแล้ว</p>
         <button class="ready-btn" id="readyBtn">✓ ฉันพร้อมแล้ว</button>
         <button class="primary-btn full host-start" id="startGameBtn" disabled>รอผู้เล่นทุกคนพร้อม…</button>
