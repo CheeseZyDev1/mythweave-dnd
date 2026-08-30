@@ -13,14 +13,25 @@ const waitFor = (socket, event) => new Promise((resolve, reject) => {
   const timer = setTimeout(() => reject(new Error(`Timeout: ${event}`)), 5000);
   socket.once(event, value => { clearTimeout(timer); resolve(value); });
 });
+const waitForMatching = (socket, event, predicate) => new Promise((resolve, reject) => {
+  const timer = setTimeout(() => { socket.off(event, onEvent); reject(new Error(`Timeout: ${event}`)); }, 10000);
+  const onEvent = value => {
+    if (!predicate(value)) return;
+    clearTimeout(timer);
+    socket.off(event, onEvent);
+    resolve(value);
+  };
+  socket.on(event, onEvent);
+});
 
 async function run() {
   await Promise.all([waitFor(a, 'connect'), waitFor(b, 'connect')]);
   a.emit('join-room', { roomId, player: { name: 'Aria', location: 'elderwood' } });
   ({ selfId: aId } = await waitFor(a, 'joined-room'));
+  const stateWithBothPlayers = waitForMatching(a, 'room-state', state => state.players.length === 2);
   b.emit('join-room', { roomId, player: { name: 'Theo', location: 'moonruins' } });
   ({ selfId: bId } = await waitFor(b, 'joined-room'));
-  latestState = await waitFor(a, 'room-state');
+  latestState = await stateWithBothPlayers;
   assert.equal(latestState.players.length, 2);
   assert.equal(latestState.currentTurnId, aId);
 
