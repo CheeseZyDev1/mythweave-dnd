@@ -69,6 +69,7 @@ async function run() {
   checkpoint = 'reconnecting the guest';
   reconnectedGuest = io(url, { forceNew: true });
   await waitFor(reconnectedGuest, 'connect');
+  const guestOnlineAgain = waitForMatching(host, 'room-state', state => state.players.length === 2 && state.players.every(player => player.online));
   const rejoined = waitFor(reconnectedGuest, 'joined-room');
   reconnectedGuest.emit('join-room', {
     roomId: hostRoom.roomId,
@@ -77,7 +78,7 @@ async function run() {
   const reconnectResult = await rejoined;
   assert.equal(reconnectResult.selfId, guestClientId);
   assert.equal(reconnectResult.reconnected, true);
-  await waitForMatching(host, 'room-state', state => state.players.length === 2 && state.players.every(player => player.online));
+  await guestOnlineAgain;
 
   checkpoint = 'adding a host-controlled bot';
   const stateWithBot = waitForMatching(host, 'room-state', state => state.players.length === 3 && state.players.some(player => player.isBot));
