@@ -1,22 +1,31 @@
 {
-  "name": "mythweave-online-tabletop",
-  "version": "1.0.0",
+  "name": "mythweave-dnd",
+  "version": "2.0.0",
   "private": true,
-  "description": "Online fantasy tabletop for playing D&D with friends",
-  "main": "server.js",
+  "description": "Mythweave D&D online tabletop built with Next.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node --watch server.js",
-    "test:multiplayer": "node tests/multiplayer-smoke.js"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "tsc --noEmit"
   },
   "engines": {
-    "node": ">=20"
+    "node": "22.x"
   },
   "dependencies": {
-    "express": "^5.1.0",
-    "socket.io": "^4.8.1"
+    "@supabase/ssr": "^0.12.5",
+    "@supabase/supabase-js": "^2.112.4",
+    "next": "16.3.3",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
   },
   "devDependencies": {
-    "socket.io-client": "^4.8.3"
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "supabase": "^2.116.0",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^5.9.0"
   }
 }
