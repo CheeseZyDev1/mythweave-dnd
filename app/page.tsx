@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 const foundations = [
   { mark: "N", title: "Next.js Foundation", detail: "App Router · TypeScript · Server Components", state: "พร้อมแล้ว" },
   { mark: "S", title: "Supabase Platform", detail: "Auth · Database · Realtime · Storage", state: "เชื่อมแล้ว" },
@@ -19,6 +21,7 @@ export default function Home() {
           <h1>โลกเดิม<br /><em>รากฐานพร้อมแล้ว</em></h1>
           <p className="intro">Mythweave พร้อมเข้าสู่การสร้างระบบบัญชีผู้เล่น ห้องออนไลน์แบบเรียลไทม์ และการผจญภัยที่บันทึกไว้เล่นต่อได้</p>
           <div className="migration-status"><span>01</span><div><b>Phase 0 พร้อมใช้งานบนเว็บ</b><small>Next.js, Supabase และ Vercel เชื่อมต่อสำเร็จ</small></div></div>
+          <Link className="foundation-cta" href="/auth">เข้าสู่ห้องผจญภัย <span>→</span></Link>
         </div>
 
         <div className="world-window" aria-label="แผนที่เอเธอเรีย">
