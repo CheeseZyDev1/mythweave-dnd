@@ -7,6 +7,7 @@ import type {
   InitiativeTracker,
 } from "../../lib/initiative/types";
 import type { RoomMessage } from "../../lib/chat/types";
+import type { RoomSave } from "../../lib/room-saves/types";
 import { DiceTable } from "./dice-table";
 
 export const metadata: Metadata = { title: "Realtime Dice — Mythweave" };
@@ -27,6 +28,7 @@ export default async function DicePage({ searchParams }: Props) {
   let initiativeEntries: InitiativeEntry[] = [];
   let initiativeTracker: InitiativeTracker | null = null;
   let messages: RoomMessage[] = [];
+  let saves: RoomSave[] = [];
   if (tableId) {
     const { data } = await supabase
       .from("dice_tables")
@@ -41,6 +43,7 @@ export default async function DicePage({ searchParams }: Props) {
         { data: entryData },
         { data: trackerData },
         { data: messageData },
+        { data: saveData },
       ] = await Promise.all([
         supabase
           .from("dice_rolls")
@@ -69,12 +72,14 @@ export default async function DicePage({ searchParams }: Props) {
           .eq("table_id", table.id)
           .order("created_at", { ascending: false })
           .limit(100),
+        supabase.from("room_saves").select("id,table_id,slot,save_name,entry_count,round_number,created_by,created_at,updated_at").eq("table_id", table.id).order("slot"),
       ]);
       rolls = (rollData ?? []).reverse() as DiceRoll[];
       members = memberData ?? [];
       initiativeEntries = (entryData ?? []) as InitiativeEntry[];
       initiativeTracker = trackerData as InitiativeTracker | null;
       messages = ((messageData ?? []) as RoomMessage[]).reverse();
+      saves = (saveData ?? []) as RoomSave[];
     }
   }
 
@@ -88,6 +93,7 @@ export default async function DicePage({ searchParams }: Props) {
       initialInitiativeEntries={initiativeEntries}
       initialInitiativeTracker={initiativeTracker}
       initialMessages={messages}
+      initialSaves={saves}
     />
   );
 }

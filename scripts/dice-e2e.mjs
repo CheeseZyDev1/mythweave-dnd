@@ -161,6 +161,26 @@ try {
   const nextRound = await initiativeAction(host, "next");
   if (secondTurn.tracker.current_entry_id !== guestEntry.entry.id || nextRound.tracker.current_entry_id !== hostEntry.entry.id || nextRound.tracker.round_number !== 2) throw new Error("Initiative order or round advancement is incorrect.");
 
+  async function saveAction(player, action, slot, name) {
+    const response = await fetch(`${appUrl}/api/room-saves`, { method: "POST", headers: { "Content-Type": "application/json", Cookie: player.cookie() }, body: JSON.stringify({ action, tableId: created.tableId, slot, name }) });
+    const body = await response.json();
+    return { response, body };
+  }
+  const savedRoom = await saveAction(host, "save", 1, "Round Two");
+  if (savedRoom.response.status !== 200 || savedRoom.body.save?.entry_count !== 2 || savedRoom.body.save?.round_number !== 2) throw new Error(`Room save failed: ${savedRoom.response.status} ${JSON.stringify(savedRoom.body)}`);
+  const spectatorSave = await saveAction(guest, "save", 2, "Forbidden Save");
+  if (spectatorSave.response.status !== 403) throw new Error("Spectator was allowed to save room state.");
+  await initiativeAction(host, "reset");
+  const { data: clearedEntries } = await host.client.from("initiative_entries").select("id").eq("table_id", created.tableId);
+  if (clearedEntries?.length !== 0) throw new Error("Initiative reset did not clear entries before load test.");
+  const loadedRoom = await saveAction(host, "load", 1);
+  if (loadedRoom.response.status !== 200) throw new Error(`Room load failed: ${loadedRoom.response.status} ${JSON.stringify(loadedRoom.body)}`);
+  const [{ data: restoredEntries }, { data: restoredTracker }] = await Promise.all([
+    host.client.from("initiative_entries").select("id,name,initiative").eq("table_id", created.tableId),
+    host.client.from("initiative_trackers").select("current_entry_id,round_number,active").eq("table_id", created.tableId).single(),
+  ]);
+  if (restoredEntries?.length !== 2 || restoredTracker?.current_entry_id !== hostEntry.entry.id || restoredTracker.round_number !== 2 || !restoredTracker.active) throw new Error("Loaded room state did not restore the saved encounter.");
+
   const { data: guestRolls, error: guestReadError } = await guest.client.from("dice_rolls").select("id").eq("table_id", created.tableId);
   if (guestReadError || guestRolls.length !== 1) throw guestReadError ?? new Error("Member could not read shared rolls.");
   const outsider = createClient(url, publishableKey, { auth: { persistSession: false } });
@@ -170,11 +190,13 @@ try {
   if (publicInitiativeError || publicInitiative.length !== 0) throw publicInitiativeError ?? new Error("RLS exposed initiative entries to the public.");
   const { data: publicMessages, error: publicMessagesError } = await outsider.from("room_messages").select("id").eq("table_id", created.tableId);
   if (publicMessagesError || publicMessages.length !== 0) throw publicMessagesError ?? new Error("RLS exposed room chat to the public.");
+  const { data: publicSaves, error: publicSavesError } = await outsider.from("room_saves").select("id").eq("table_id", created.tableId);
+  if (publicSavesError || publicSaves.length !== 0) throw publicSavesError ?? new Error("RLS exposed room saves to the public.");
 
   await guest.client.removeChannel(channel);
   await guest.client.removeChannel(initiativeChannel);
   await guest.client.removeChannel(chatChannel);
-  console.log(JSON.stringify({ privateTable: true, inviteJoin: true, roomRoles: true, roomChat: true, chatRealtime: true, oversizedChatRejected: true, serverRoll: true, realtimeToGuest: true, invalidDiceRejected: true, initiativeOrder: true, initiativeRealtime: true, roundAdvance: true, memberRead: true, publicDenied: true, total: received.total }));
+  console.log(JSON.stringify({ privateTable: true, inviteJoin: true, roomRoles: true, roomChat: true, chatRealtime: true, oversizedChatRejected: true, roomSave: true, dmSaveOnly: true, roomLoadRestore: true, serverRoll: true, realtimeToGuest: true, invalidDiceRejected: true, initiativeOrder: true, initiativeRealtime: true, roundAdvance: true, memberRead: true, publicDenied: true, total: received.total }));
 } finally {
   for (const client of browserClients) client.realtime.disconnect();
   for (const userId of users) await admin.auth.admin.deleteUser(userId);

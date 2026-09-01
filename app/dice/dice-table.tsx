@@ -12,6 +12,8 @@ import type {
 import { InitiativePanel } from "./initiative-panel";
 import type { RoomMessage } from "../../lib/chat/types";
 import { RoomChat } from "./room-chat";
+import type { RoomSave } from "../../lib/room-saves/types";
+import { RoomSavePanel } from "./room-save-panel";
 
 type TableInfo = { id: string; code: string };
 type Member = { user_id: string; display_name: string; role: string };
@@ -49,6 +51,7 @@ export function DiceTable({
   initialInitiativeEntries,
   initialInitiativeTracker,
   initialMessages,
+  initialSaves,
 }: {
   initialTable: TableInfo | null;
   initialRolls: DiceRoll[];
@@ -58,6 +61,7 @@ export function DiceTable({
   initialInitiativeEntries: InitiativeEntry[];
   initialInitiativeTracker: InitiativeTracker | null;
   initialMessages: RoomMessage[];
+  initialSaves: RoomSave[];
 }) {
   const router = useRouter();
   const [table] = useState(initialTable);
@@ -389,6 +393,11 @@ export function DiceTable({
             tableId={table.id}
             currentUserId={currentUserId}
             initialMessages={initialMessages}
+          />
+          <RoomSavePanel
+            tableId={table.id}
+            isDm={ownMember?.role === "dm"}
+            initialSaves={initialSaves}
           />
         </div>
       </section>
