@@ -110,6 +110,7 @@ export function CharacterSheet({ character, wallet, statuses }: { character: Cha
           <Link className="wallet-shop-link" href={`/guilds?character=${character.id}`}>ชื่อเสียงกิลด์ →</Link>
           <Link className="wallet-shop-link" href={`/crafting/cooking?character=${character.id}`}>ครัวกองไฟ →</Link>
           <Link className="wallet-shop-link" href={`/crafting/brewing?character=${character.id}`}>โต๊ะปรุงยา →</Link>
+          <Link className="wallet-shop-link" href={`/forge?character=${character.id}`}>เตาหลอม Relic →</Link>
         </aside>
 
         <div className="sheet-main">
