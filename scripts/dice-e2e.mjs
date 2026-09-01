@@ -94,14 +94,54 @@ try {
   });
   if (invalidResponse.status !== 400) throw new Error("Invalid dice type was not rejected.");
 
+  async function initiativeAction(player, action, extra = {}) {
+    const response = await fetch(`${appUrl}/api/initiative`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Cookie: player.cookie() },
+      body: JSON.stringify({ action, tableId: created.tableId, ...extra }),
+    });
+    const body = await response.json();
+    if (!response.ok) throw new Error(`Initiative ${action} failed: ${response.status} ${JSON.stringify(body)}`);
+    return body;
+  }
+
+  const hostEntry = await initiativeAction(host, "add", { name: "Aria", initiative: 18 });
+  const guestEntry = await initiativeAction(guest, "add", { name: "Goblin", initiative: 12 });
+  if (!hostEntry.entry?.id || !guestEntry.entry?.id) throw new Error("Initiative entries were not created.");
+
+  let initiativeResolve;
+  let initiativeReject;
+  const initiativeEvent = new Promise((resolve, reject) => { initiativeResolve = resolve; initiativeReject = reject; });
+  const initiativeChannel = guest.client.channel(`initiative-e2e-${suffix}`).on("postgres_changes", {
+    event: "UPDATE", schema: "public", table: "initiative_trackers", filter: `table_id=eq.${created.tableId}`,
+  }, (payload) => initiativeResolve(payload.new));
+  await new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("Initiative subscription timed out.")), 10000);
+    initiativeChannel.subscribe((status) => {
+      if (status === "SUBSCRIBED") { clearTimeout(timer); resolve(); }
+      if (status === "CHANNEL_ERROR") { clearTimeout(timer); reject(new Error("Initiative channel error.")); }
+    });
+  });
+  const initiativeTimer = setTimeout(() => initiativeReject(new Error("Guest did not receive initiative state.")), 10000);
+  const firstTurn = await initiativeAction(host, "next");
+  const receivedInitiative = await initiativeEvent;
+  clearTimeout(initiativeTimer);
+  if (firstTurn.tracker.current_entry_id !== hostEntry.entry.id || receivedInitiative.current_entry_id !== hostEntry.entry.id || firstTurn.tracker.round_number !== 1) throw new Error("Initiative did not start with the highest roll.");
+  const secondTurn = await initiativeAction(guest, "next");
+  const nextRound = await initiativeAction(host, "next");
+  if (secondTurn.tracker.current_entry_id !== guestEntry.entry.id || nextRound.tracker.current_entry_id !== hostEntry.entry.id || nextRound.tracker.round_number !== 2) throw new Error("Initiative order or round advancement is incorrect.");
+
   const { data: guestRolls, error: guestReadError } = await guest.client.from("dice_rolls").select("id").eq("table_id", created.tableId);
   if (guestReadError || guestRolls.length !== 1) throw guestReadError ?? new Error("Member could not read shared rolls.");
   const outsider = createClient(url, publishableKey, { auth: { persistSession: false } });
   const { data: publicRolls, error: publicReadError } = await outsider.from("dice_rolls").select("id").eq("table_id", created.tableId);
   if (publicReadError || publicRolls.length !== 0) throw publicReadError ?? new Error("RLS exposed rolls to the public.");
+  const { data: publicInitiative, error: publicInitiativeError } = await outsider.from("initiative_entries").select("id").eq("table_id", created.tableId);
+  if (publicInitiativeError || publicInitiative.length !== 0) throw publicInitiativeError ?? new Error("RLS exposed initiative entries to the public.");
 
   await guest.client.removeChannel(channel);
-  console.log(JSON.stringify({ privateTable: true, inviteJoin: true, serverRoll: true, realtimeToGuest: true, invalidDiceRejected: true, memberRead: true, publicDenied: true, total: received.total }));
+  await guest.client.removeChannel(initiativeChannel);
+  console.log(JSON.stringify({ privateTable: true, inviteJoin: true, serverRoll: true, realtimeToGuest: true, invalidDiceRejected: true, initiativeOrder: true, initiativeRealtime: true, roundAdvance: true, memberRead: true, publicDenied: true, total: received.total }));
 } finally {
   for (const client of browserClients) client.realtime.disconnect();
   for (const userId of users) await admin.auth.admin.deleteUser(userId);

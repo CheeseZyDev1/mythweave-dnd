@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { createClient } from "../../lib/supabase/server";
 import type { DiceRoll } from "../../lib/dice/types";
+import type { InitiativeEntry, InitiativeTracker } from "../../lib/initiative/types";
 import { DiceTable } from "./dice-table";
 
 export const metadata: Metadata = { title: "Realtime Dice — Mythweave" };
@@ -17,19 +18,24 @@ export default async function DicePage({ searchParams }: Props) {
   let table: { id: string; code: string } | null = null;
   let rolls: DiceRoll[] = [];
   let members: { user_id: string; display_name: string }[] = [];
+  let initiativeEntries: InitiativeEntry[] = [];
+  let initiativeTracker: InitiativeTracker | null = null;
   if (tableId) {
     const { data } = await supabase.from("dice_tables").select("id,code").eq("id", tableId).maybeSingle();
     table = data;
     if (table) {
-      const [{ data: rollData }, { data: memberData }] = await Promise.all([
+      const [{ data: rollData }, { data: memberData }, { data: entryData }, { data: trackerData }] = await Promise.all([
         supabase.from("dice_rolls").select("*").eq("table_id", table.id).order("created_at", { ascending: false }).limit(30),
         supabase.from("dice_table_members").select("user_id,display_name").eq("table_id", table.id).order("joined_at"),
+        supabase.from("initiative_entries").select("*").eq("table_id", table.id).order("initiative", { ascending: false }),
+        supabase.from("initiative_trackers").select("*").eq("table_id", table.id).maybeSingle(),
       ]);
       rolls = (rollData ?? []).reverse() as DiceRoll[];
       members = memberData ?? [];
+      initiativeEntries = (entryData ?? []) as InitiativeEntry[];
+      initiativeTracker = trackerData as InitiativeTracker | null;
     }
   }
 
-  return <DiceTable initialTable={table} initialRolls={rolls} members={members} currentUserId={user.id} invalidTable={Boolean(tableId && !table)} />;
+  return <DiceTable initialTable={table} initialRolls={rolls} members={members} currentUserId={user.id} invalidTable={Boolean(tableId && !table)} initialInitiativeEntries={initiativeEntries} initialInitiativeTracker={initiativeTracker} />;
 }
-
