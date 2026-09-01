@@ -8,6 +8,7 @@ import type {
 } from "../../lib/initiative/types";
 import type { RoomMessage } from "../../lib/chat/types";
 import type { RoomSave } from "../../lib/room-saves/types";
+import type { NpcDialogue } from "../../lib/npc/types";
 import { DiceTable } from "./dice-table";
 
 export const metadata: Metadata = { title: "Realtime Dice — Mythweave" };
@@ -29,6 +30,7 @@ export default async function DicePage({ searchParams }: Props) {
   let initiativeTracker: InitiativeTracker | null = null;
   let messages: RoomMessage[] = [];
   let saves: RoomSave[] = [];
+  let npcHistory: NpcDialogue[] = [];
   if (tableId) {
     const { data } = await supabase
       .from("dice_tables")
@@ -44,6 +46,7 @@ export default async function DicePage({ searchParams }: Props) {
         { data: trackerData },
         { data: messageData },
         { data: saveData },
+        { data: npcData },
       ] = await Promise.all([
         supabase
           .from("dice_rolls")
@@ -73,6 +76,7 @@ export default async function DicePage({ searchParams }: Props) {
           .order("created_at", { ascending: false })
           .limit(100),
         supabase.from("room_saves").select("id,table_id,slot,save_name,entry_count,round_number,created_by,created_at,updated_at").eq("table_id", table.id).order("slot"),
+        supabase.from("npc_dialogue_history").select("*").eq("table_id",table.id).order("created_at",{ascending:false}).limit(20),
       ]);
       rolls = (rollData ?? []).reverse() as DiceRoll[];
       members = memberData ?? [];
@@ -80,6 +84,7 @@ export default async function DicePage({ searchParams }: Props) {
       initiativeTracker = trackerData as InitiativeTracker | null;
       messages = ((messageData ?? []) as RoomMessage[]).reverse();
       saves = (saveData ?? []) as RoomSave[];
+      npcHistory = ((npcData ?? []) as NpcDialogue[]).reverse();
     }
   }
 
@@ -94,6 +99,7 @@ export default async function DicePage({ searchParams }: Props) {
       initialInitiativeTracker={initiativeTracker}
       initialMessages={messages}
       initialSaves={saves}
+      initialNpcHistory={npcHistory}
     />
   );
 }

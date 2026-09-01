@@ -199,10 +199,25 @@ try {
   const contentPage = await fetch(`${appUrl}/content`, { headers: { Cookie: host.cookie() } });
   if (!contentPage.ok || !(await contentPage.text()).includes("คลังเรื่องราว")) throw new Error("World content page did not render.");
 
+  let npcResolve;
+  let npcReject;
+  const npcEvent = new Promise((resolve,reject)=>{npcResolve=resolve;npcReject=reject;});
+  const npcChannel=guest.client.channel(`npc-e2e-${suffix}`).on("postgres_changes",{event:"INSERT",schema:"public",table:"npc_dialogue_history",filter:`table_id=eq.${created.tableId}`},payload=>npcResolve(payload.new));
+  await new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(new Error("NPC subscription timed out.")),10000);npcChannel.subscribe(status=>{if(status==="SUBSCRIBED"){clearTimeout(timer);resolve();}if(status==="CHANNEL_ERROR"){clearTimeout(timer);reject(new Error("NPC channel error."));}});});
+  const npcTimer=setTimeout(()=>npcReject(new Error("Guest did not receive NPC dialogue.")),10000);
+  const npcResponse=await fetch(`${appUrl}/api/npc/dialogue`,{method:"POST",headers:{"Content-Type":"application/json",Cookie:host.cookie()},body:JSON.stringify({tableId:created.tableId,npcName:"Elder Elrin",speakerType:"villager",context:"greeting"})});
+  const npcBody=await npcResponse.json();
+  if(npcResponse.status!==201||npcBody.dialogue?.context!=="greeting"||!npcBody.dialogue?.text_th)throw new Error(`NPC dialogue failed: ${npcResponse.status} ${JSON.stringify(npcBody)}`);
+  const receivedNpc=await npcEvent;clearTimeout(npcTimer);
+  if(receivedNpc.id!==npcBody.dialogue.id)throw new Error("Realtime NPC dialogue did not match.");
+  const {data:publicNpc,error:publicNpcError}=await outsider.from("npc_dialogue_history").select("id").eq("table_id",created.tableId);
+  if(publicNpcError||publicNpc.length!==0)throw publicNpcError??new Error("RLS exposed NPC dialogue.");
+
   await guest.client.removeChannel(channel);
   await guest.client.removeChannel(initiativeChannel);
   await guest.client.removeChannel(chatChannel);
-  console.log(JSON.stringify({ privateTable: true, inviteJoin: true, roomRoles: true, roomChat: true, chatRealtime: true, oversizedChatRejected: true, roomSave: true, dmSaveOnly: true, roomLoadRestore: true, staticContentCounts: true, contentPage: true, serverRoll: true, realtimeToGuest: true, invalidDiceRejected: true, initiativeOrder: true, initiativeRealtime: true, roundAdvance: true, memberRead: true, publicDenied: true, total: received.total }));
+  await guest.client.removeChannel(npcChannel);
+  console.log(JSON.stringify({ privateTable: true, inviteJoin: true, roomRoles: true, roomChat: true, chatRealtime: true, oversizedChatRejected: true, roomSave: true, dmSaveOnly: true, roomLoadRestore: true, staticContentCounts: true, contentPage: true, npcWeightedDialogue: true, npcRealtime: true, serverRoll: true, realtimeToGuest: true, invalidDiceRejected: true, initiativeOrder: true, initiativeRealtime: true, roundAdvance: true, memberRead: true, publicDenied: true, total: received.total }));
 } finally {
   for (const client of browserClients) client.realtime.disconnect();
   for (const userId of users) await admin.auth.admin.deleteUser(userId);

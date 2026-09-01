@@ -14,6 +14,8 @@ import type { RoomMessage } from "../../lib/chat/types";
 import { RoomChat } from "./room-chat";
 import type { RoomSave } from "../../lib/room-saves/types";
 import { RoomSavePanel } from "./room-save-panel";
+import type { NpcDialogue } from "../../lib/npc/types";
+import { NpcDialoguePanel } from "./npc-dialogue";
 
 type TableInfo = { id: string; code: string };
 type Member = { user_id: string; display_name: string; role: string };
@@ -52,6 +54,7 @@ export function DiceTable({
   initialInitiativeTracker,
   initialMessages,
   initialSaves,
+  initialNpcHistory,
 }: {
   initialTable: TableInfo | null;
   initialRolls: DiceRoll[];
@@ -62,6 +65,7 @@ export function DiceTable({
   initialInitiativeTracker: InitiativeTracker | null;
   initialMessages: RoomMessage[];
   initialSaves: RoomSave[];
+  initialNpcHistory: NpcDialogue[];
 }) {
   const router = useRouter();
   const [table] = useState(initialTable);
@@ -399,6 +403,7 @@ export function DiceTable({
             isDm={ownMember?.role === "dm"}
             initialSaves={initialSaves}
           />
+          <NpcDialoguePanel tableId={table.id} initialHistory={initialNpcHistory} />
         </div>
       </section>
     </main>
