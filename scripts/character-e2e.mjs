@@ -76,8 +76,8 @@ try {
 
   const { data: shopItem, error: shopItemError } = await supabase.from("content_items").select("id,name_th,base_value").eq("rarity","uncommon").order("base_value",{ascending:false}).limit(1).single();
   if (shopItemError) throw shopItemError;
-  async function shopTrade(action, quantity) {
-    const response = await fetch(`${appUrl}/api/shop/trade`, { method: "POST", headers: { "Content-Type": "application/json", Cookie: cookie }, body: JSON.stringify({ action, characterId, itemId: shopItem.id, quantity }) });
+  async function shopTrade(action, quantity, itemId = shopItem.id) {
+    const response = await fetch(`${appUrl}/api/shop/trade`, { method: "POST", headers: { "Content-Type": "application/json", Cookie: cookie }, body: JSON.stringify({ action, characterId, itemId, quantity }) });
     return { response, body: await response.json() };
   }
   const shopPage = await fetch(`${appUrl}/shop?character=${characterId}`, { headers: { Cookie: cookie } });
@@ -135,6 +135,16 @@ try {
   const guildDonation=await guildAction(guildStandings[1].guild_id,"donate_gold");if(guildDonation.response.status!==201||guildDonation.body.standing?.cost_copper!==100||guildDonation.body.standing?.wallet_balance!==walletBeforeGuild-100)throw new Error(`Guild donation failed: ${JSON.stringify(guildDonation.body)}`);
   const {data:secretAffinity}=await supabase.from("character_guild_affinity").select("score").eq("character_id",characterId);if(secretAffinity.length!==0)throw new Error("Hidden guild score was readable by the player.");
 
+  const {data:cookingRecipe,error:cookingRecipeError}=await supabase.from("cooking_recipes").select("id,output_item_id,effect_template_id").eq("slug","trail-skewers").single();if(cookingRecipeError)throw cookingRecipeError;
+  const {data:cookingIngredients,error:cookingIngredientsError}=await supabase.from("cooking_recipe_ingredients").select("content_item_id,quantity").eq("recipe_id",cookingRecipe.id);if(cookingIngredientsError||cookingIngredients.length!==2)throw cookingIngredientsError??new Error("Cooking recipe ingredients are incomplete.");
+  const cookingPage=await fetch(`${appUrl}/crafting/cooking?character=${characterId}`,{headers:{Cookie:cookie}});if(!cookingPage.ok||!(await cookingPage.text()).includes("ครัวกองไฟ"))throw new Error("Cooking page did not render.");
+  let cooked;let cookingAttempts=0;
+  while(!cooked?.body.result?.success&&cookingAttempts<5){for(const ingredient of cookingIngredients){const bought=await shopTrade("buy",ingredient.quantity,ingredient.content_item_id);if(!bought.response.ok)throw new Error(`Could not buy cooking ingredient: ${JSON.stringify(bought.body)}`);}const response=await fetch(`${appUrl}/api/crafting/cook`,{method:"POST",headers:{"Content-Type":"application/json",Cookie:cookie},body:JSON.stringify({characterId,recipeId:cookingRecipe.id})});cooked={response,body:await response.json()};cookingAttempts++;if(cooked.response.status!==201)throw new Error(`Cooking failed: ${JSON.stringify(cooked.body)}`);}
+  if(!cooked.body.result.success)throw new Error("Beginner cooking did not succeed within five attempts.");
+  const [{data:cookedStack},{data:foodEffect},{data:cookingHistory}]=await Promise.all([supabase.from("character_item_stacks").select("quantity").eq("character_id",characterId).eq("content_item_id",cookingRecipe.output_item_id).single(),supabase.from("character_status_effects").select("source").eq("character_id",characterId).eq("template_id",cookingRecipe.effect_template_id).single(),supabase.from("cooking_history").select("id").eq("character_id",characterId)]);
+  if(cookedStack.quantity<1||!foodEffect.source.startsWith("อาหาร:")||cookingHistory.length!==cookingAttempts)throw new Error("Cooking output, buff, or history was not persisted.");
+  const missingCooking=await fetch(`${appUrl}/api/crafting/cook`,{method:"POST",headers:{"Content-Type":"application/json",Cookie:cookie},body:JSON.stringify({characterId,recipeId:cookingRecipe.id})});if(missingCooking.status!==409)throw new Error("Cooking was allowed without ingredients.");
+
   const updateResponse = await fetch(`${appUrl}/api/characters/${characterId}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json", Cookie: cookie },
@@ -164,8 +174,9 @@ try {
   const {data:hiddenHaggles,error:hiddenHagglesError}=await outsider.from("shop_haggles").select("id").eq("character_id",characterId);if(hiddenHagglesError||hiddenHaggles.length!==0)throw hiddenHagglesError??new Error("RLS exposed haggle attempts.");
   const {data:hiddenAffinity,error:hiddenAffinityError}=await outsider.from("character_npc_affinity").select("id").eq("character_id",characterId);if(hiddenAffinityError||hiddenAffinity.length!==0)throw hiddenAffinityError??new Error("RLS exposed NPC affinity.");
   const {data:hiddenGuildAffinity,error:hiddenGuildAffinityError}=await outsider.from("character_guild_affinity").select("id").eq("character_id",characterId);if(hiddenGuildAffinityError||hiddenGuildAffinity.length!==0)throw hiddenGuildAffinityError??new Error("RLS exposed hidden guild affinity.");
+  const {data:hiddenCooking,error:hiddenCookingError}=await outsider.from("cooking_history").select("id").eq("character_id",characterId);if(hiddenCookingError||hiddenCooking.length!==0)throw hiddenCookingError??new Error("RLS exposed cooking history.");
 
-  console.log(JSON.stringify({ signup: true, apiCreate: true, invalidPayloadRejected: true, racialBonus: character.dexterity === 17, lobbyRender: true, sheetRender: true, sheetUpdate: true, inventoryPersistence: true, walletStartingFunds: true, walletLedger: true, overdraftRejected: true, shopRender: true, shopHaggle:true,haggleCooldown:true,negotiatedPrice:true,shopBuy: true, shopSell: true, excessivePurchaseRejected: true, questLogRender:true,questAccept:true,questComplete:true,questRewardOnce:true,statusApply:true,statusStacks:true,statusDuration:true,statusRemove:true,npcAffinityPage:true,npcAffinityTalk:true,npcAffinityGift:true,npcAffinityCooldown:true,guildPage:true,guildHiddenScore:true,guildService:true,guildDonation:true,guildCooldown:true, rlsOwnerRead: true, rlsPublicDenied: true }));
+  console.log(JSON.stringify({ signup: true, apiCreate: true, invalidPayloadRejected: true, racialBonus: character.dexterity === 17, lobbyRender: true, sheetRender: true, sheetUpdate: true, inventoryPersistence: true, walletStartingFunds: true, walletLedger: true, overdraftRejected: true, shopRender: true, shopHaggle:true,haggleCooldown:true,negotiatedPrice:true,shopBuy: true, shopSell: true, excessivePurchaseRejected: true, questLogRender:true,questAccept:true,questComplete:true,questRewardOnce:true,statusApply:true,statusStacks:true,statusDuration:true,statusRemove:true,npcAffinityPage:true,npcAffinityTalk:true,npcAffinityGift:true,npcAffinityCooldown:true,guildPage:true,guildHiddenScore:true,guildService:true,guildDonation:true,guildCooldown:true,cookingPage:true,cookingIngredients:true,cookingRoll:true,cookingOutput:true,cookingBuff:true, rlsOwnerRead: true, rlsPublicDenied: true }));
 } finally {
   if (characterId) await supabase.from("characters").delete().eq("id", characterId);
   if (userId) await fetch(`${url}/auth/v1/admin/users/${userId}`, { method: "DELETE", headers: { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}` } });

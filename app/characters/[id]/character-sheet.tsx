@@ -108,6 +108,7 @@ export function CharacterSheet({ character, wallet, statuses }: { character: Cha
           <p className="sheet-updated">แก้ไขล่าสุด {new Date(character.updatedAt).toLocaleString("th-TH")}</p>
           <Link className="wallet-shop-link" href={`/relationships?character=${character.id}`}>สายสัมพันธ์ NPC →</Link>
           <Link className="wallet-shop-link" href={`/guilds?character=${character.id}`}>ชื่อเสียงกิลด์ →</Link>
+          <Link className="wallet-shop-link" href={`/crafting/cooking?character=${character.id}`}>ครัวกองไฟ →</Link>
         </aside>
 
         <div className="sheet-main">
