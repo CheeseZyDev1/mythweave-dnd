@@ -1,0 +1,1 @@
+export type GeneratedMonster={id:string;table_id:string;created_by:string;name_th:string;challenge_tier:"minion"|"standard"|"elite"|"boss";biome:"forest"|"cave"|"swamp"|"ruins";hp_max:number;armor_class:number;attack_bonus:number;damage_dice:string;traits:{signature?:string;modifiers?:Record<string,unknown>};seed:string;created_at:string};

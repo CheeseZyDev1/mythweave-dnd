@@ -9,6 +9,7 @@ import "./guilds.css";
 import "./cooking.css";
 import "./brewing.css";
 import "./forge.css";
+import "./monster-forge.css";
 
 const cinzel = Cinzel({ subsets: ["latin"], variable: "--font-cinzel" });
 const thai = Noto_Sans_Thai({ subsets: ["thai"], variable: "--font-thai" });

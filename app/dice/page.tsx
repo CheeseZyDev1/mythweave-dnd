@@ -10,6 +10,7 @@ import type { RoomMessage } from "../../lib/chat/types";
 import type { RoomSave } from "../../lib/room-saves/types";
 import type { NpcDialogue } from "../../lib/npc/types";
 import type { DmNarration } from "../../lib/dm/types";
+import type { GeneratedMonster } from "../../lib/monsters/types";
 import { DiceTable } from "./dice-table";
 
 export const metadata: Metadata = { title: "Realtime Dice — Mythweave" };
@@ -33,6 +34,7 @@ export default async function DicePage({ searchParams }: Props) {
   let saves: RoomSave[] = [];
   let npcHistory: NpcDialogue[] = [];
   let narrations: DmNarration[] = [];
+  let monsters: GeneratedMonster[] = [];
   if (tableId) {
     const { data } = await supabase
       .from("dice_tables")
@@ -50,6 +52,7 @@ export default async function DicePage({ searchParams }: Props) {
         { data: saveData },
         { data: npcData },
         { data: narrationData },
+        { data: monsterData },
       ] = await Promise.all([
         supabase
           .from("dice_rolls")
@@ -81,6 +84,7 @@ export default async function DicePage({ searchParams }: Props) {
         supabase.from("room_saves").select("id,table_id,slot,save_name,entry_count,round_number,created_by,created_at,updated_at").eq("table_id", table.id).order("slot"),
         supabase.from("npc_dialogue_history").select("*").eq("table_id",table.id).order("created_at",{ascending:false}).limit(20),
         supabase.from("dm_narrations").select("*").eq("table_id",table.id).order("created_at",{ascending:false}).limit(10),
+        supabase.from("generated_monsters").select("*").eq("table_id",table.id).order("created_at",{ascending:false}).limit(12),
       ]);
       rolls = (rollData ?? []).reverse() as DiceRoll[];
       members = memberData ?? [];
@@ -90,6 +94,7 @@ export default async function DicePage({ searchParams }: Props) {
       saves = (saveData ?? []) as RoomSave[];
       npcHistory = ((npcData ?? []) as NpcDialogue[]).reverse();
       narrations = ((narrationData ?? []) as DmNarration[]).reverse();
+      monsters = (monsterData ?? []) as GeneratedMonster[];
     }
   }
 
@@ -106,6 +111,7 @@ export default async function DicePage({ searchParams }: Props) {
       initialSaves={saves}
       initialNpcHistory={npcHistory}
       initialNarrations={narrations}
+      initialMonsters={monsters}
     />
   );
 }

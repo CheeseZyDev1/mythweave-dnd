@@ -18,6 +18,8 @@ import type { NpcDialogue } from "../../lib/npc/types";
 import { NpcDialoguePanel } from "./npc-dialogue";
 import type { DmNarration } from "../../lib/dm/types";
 import { ManualDmConsole } from "./manual-dm-console";
+import type { GeneratedMonster } from "../../lib/monsters/types";
+import { MonsterForge } from "./monster-forge";
 
 type TableInfo = { id: string; code: string };
 type Member = { user_id: string; display_name: string; role: string };
@@ -58,6 +60,7 @@ export function DiceTable({
   initialSaves,
   initialNpcHistory,
   initialNarrations,
+  initialMonsters,
 }: {
   initialTable: TableInfo | null;
   initialRolls: DiceRoll[];
@@ -70,6 +73,7 @@ export function DiceTable({
   initialSaves: RoomSave[];
   initialNpcHistory: NpcDialogue[];
   initialNarrations: DmNarration[];
+  initialMonsters: GeneratedMonster[];
 }) {
   const router = useRouter();
   const [table] = useState(initialTable);
@@ -410,6 +414,11 @@ export function DiceTable({
           <NpcDialoguePanel
             tableId={table.id}
             initialHistory={initialNpcHistory}
+          />
+          <MonsterForge
+            tableId={table.id}
+            isDm={ownMember?.role === "dm"}
+            initialMonsters={initialMonsters}
           />
           <ManualDmConsole
             tableId={table.id}

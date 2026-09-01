@@ -213,6 +213,18 @@ try {
   const {data:publicNpc,error:publicNpcError}=await outsider.from("npc_dialogue_history").select("id").eq("table_id",created.tableId);
   if(publicNpcError||publicNpc.length!==0)throw publicNpcError??new Error("RLS exposed NPC dialogue.");
 
+  let monsterResolve;
+  let monsterReject;
+  const monsterEvent=new Promise((resolve,reject)=>{monsterResolve=resolve;monsterReject=reject;});
+  const monsterChannel=guest.client.channel(`monster-e2e-${suffix}`).on("postgres_changes",{event:"INSERT",schema:"public",table:"generated_monsters",filter:`table_id=eq.${created.tableId}`},payload=>monsterResolve(payload.new));
+  await new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(new Error("Monster subscription timed out.")),10000);monsterChannel.subscribe(status=>{if(status==="SUBSCRIBED"){clearTimeout(timer);resolve();}if(status==="CHANNEL_ERROR"){clearTimeout(timer);reject(new Error("Monster channel error."));}});});
+  const monsterTimer=setTimeout(()=>monsterReject(new Error("Guest did not receive generated monster.")),10000);
+  const monsterResponse=await fetch(`${appUrl}/api/monsters/generate`,{method:"POST",headers:{"Content-Type":"application/json",Cookie:host.cookie()},body:JSON.stringify({tableId:created.tableId,challenge:"boss",biome:"ruins"})});const monsterBody=await monsterResponse.json();
+  if(monsterResponse.status!==201||monsterBody.monster?.challenge_tier!=="boss"||monsterBody.monster?.biome!=="ruins"||monsterBody.monster.hp_max<95||!monsterBody.monster.traits?.signature)throw new Error(`Monster generation failed: ${JSON.stringify(monsterBody)}`);
+  const receivedMonster=await monsterEvent;clearTimeout(monsterTimer);if(receivedMonster.id!==monsterBody.monster.id)throw new Error("Realtime generated monster did not match.");
+  const spectatorMonster=await fetch(`${appUrl}/api/monsters/generate`,{method:"POST",headers:{"Content-Type":"application/json",Cookie:guest.cookie()},body:JSON.stringify({tableId:created.tableId,challenge:"minion",biome:"forest"})});if(spectatorMonster.status!==403)throw new Error("Spectator was allowed to generate monsters.");
+  const {data:publicMonsters,error:publicMonstersError}=await outsider.from("generated_monsters").select("id").eq("table_id",created.tableId);if(publicMonstersError||publicMonsters.length!==0)throw publicMonstersError??new Error("RLS exposed generated monsters.");
+
   const promptResponse = await fetch(`${appUrl}/api/dm/manual?tableId=${created.tableId}`, { headers: { Cookie: host.cookie() } });
   const promptBody = await promptResponse.json();
   if (!promptResponse.ok || !promptBody.prompt?.includes("Gather at the old gate.") || !promptBody.prompt.includes("Elder Elrin") || !promptBody.prompt.includes("ถึงตา Aria")) throw new Error(`Manual DM context was incomplete: ${promptResponse.status} ${JSON.stringify(promptBody)}`);
@@ -258,7 +270,8 @@ try {
   await guest.client.removeChannel(chatChannel);
   await guest.client.removeChannel(npcChannel);
   await guest.client.removeChannel(dmChannel);
-  console.log(JSON.stringify({ privateTable: true, inviteJoin: true, roomRoles: true, roomChat: true, chatRealtime: true, oversizedChatRejected: true, roomSave: true, dmSaveOnly: true, roomLoadRestore: true, staticContentCounts: true, contentPage: true, npcWeightedDialogue: true, npcRealtime: true, manualDmContext: true, manualDmPublish: true, dmRealtime: true, spectatorDmDenied: true, serverRoll: true, realtimeToGuest: true, invalidDiceRejected: true, initiativeOrder: true, initiativeRealtime: true, roundAdvance: true, memberRead: true, publicDenied: true, total: received.total }));
+  await guest.client.removeChannel(monsterChannel);
+  console.log(JSON.stringify({ privateTable: true, inviteJoin: true, roomRoles: true, roomChat: true, chatRealtime: true, oversizedChatRejected: true, roomSave: true, dmSaveOnly: true, roomLoadRestore: true, staticContentCounts: true, contentPage: true, npcWeightedDialogue: true, npcRealtime: true, proceduralMonster:true,monsterRealtime:true,spectatorMonsterDenied:true,manualDmContext: true, manualDmPublish: true, dmRealtime: true, spectatorDmDenied: true, serverRoll: true, realtimeToGuest: true, invalidDiceRejected: true, initiativeOrder: true, initiativeRealtime: true, roundAdvance: true, memberRead: true, publicDenied: true, total: received.total }));
 } finally {
   for (const client of browserClients) client.realtime.disconnect();
   for (const userId of users) await admin.auth.admin.deleteUser(userId);
