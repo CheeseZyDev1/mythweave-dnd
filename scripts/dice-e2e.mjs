@@ -53,13 +53,16 @@ try {
   const joinResponse = await fetch(`${appUrl}/api/dice/tables`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Cookie: guest.cookie() },
-    body: JSON.stringify({ action: "join", code: created.code }),
+    body: JSON.stringify({ action: "join", code: created.code, role: "spectator" }),
   });
   if (!joinResponse.ok) {
     const responseBody = await joinResponse.text();
-    const { error: rpcError } = await guest.client.rpc("join_dice_table", { invite_code: created.code, member_name: "Dice Guest" }).single();
+    const { error: rpcError } = await guest.client.rpc("join_dice_table", { invite_code: created.code, member_name: "Dice Guest", requested_role: "spectator" }).single();
     throw new Error(`Join table failed: ${joinResponse.status} ${responseBody}; RPC: ${rpcError?.message ?? "unknown"}`);
   }
+
+  const { data: roles, error: rolesError } = await host.client.from("dice_table_members").select("user_id,role").eq("table_id", created.tableId);
+  if (rolesError || roles.find((member) => member.user_id === users[0])?.role !== "dm" || roles.find((member) => member.user_id === users[1])?.role !== "spectator") throw rolesError ?? new Error("Room roles were not persisted correctly.");
 
   let eventResolve;
   let eventReject;
@@ -141,7 +144,7 @@ try {
 
   await guest.client.removeChannel(channel);
   await guest.client.removeChannel(initiativeChannel);
-  console.log(JSON.stringify({ privateTable: true, inviteJoin: true, serverRoll: true, realtimeToGuest: true, invalidDiceRejected: true, initiativeOrder: true, initiativeRealtime: true, roundAdvance: true, memberRead: true, publicDenied: true, total: received.total }));
+  console.log(JSON.stringify({ privateTable: true, inviteJoin: true, roomRoles: true, serverRoll: true, realtimeToGuest: true, invalidDiceRejected: true, initiativeOrder: true, initiativeRealtime: true, roundAdvance: true, memberRead: true, publicDenied: true, total: received.total }));
 } finally {
   for (const client of browserClients) client.realtime.disconnect();
   for (const userId of users) await admin.auth.admin.deleteUser(userId);

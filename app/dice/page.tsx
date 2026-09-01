@@ -17,7 +17,7 @@ export default async function DicePage({ searchParams }: Props) {
   const { table: tableId } = await searchParams;
   let table: { id: string; code: string } | null = null;
   let rolls: DiceRoll[] = [];
-  let members: { user_id: string; display_name: string }[] = [];
+  let members: { user_id: string; display_name: string; role: string }[] = [];
   let initiativeEntries: InitiativeEntry[] = [];
   let initiativeTracker: InitiativeTracker | null = null;
   if (tableId) {
@@ -26,7 +26,7 @@ export default async function DicePage({ searchParams }: Props) {
     if (table) {
       const [{ data: rollData }, { data: memberData }, { data: entryData }, { data: trackerData }] = await Promise.all([
         supabase.from("dice_rolls").select("*").eq("table_id", table.id).order("created_at", { ascending: false }).limit(30),
-        supabase.from("dice_table_members").select("user_id,display_name").eq("table_id", table.id).order("joined_at"),
+        supabase.from("dice_table_members").select("user_id,display_name,role").eq("table_id", table.id).order("joined_at"),
         supabase.from("initiative_entries").select("*").eq("table_id", table.id).order("initiative", { ascending: false }),
         supabase.from("initiative_trackers").select("*").eq("table_id", table.id).maybeSingle(),
       ]);
