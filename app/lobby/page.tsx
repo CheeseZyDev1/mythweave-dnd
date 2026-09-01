@@ -28,12 +28,12 @@ export default async function LobbyPage() {
         {characters?.length ? <div className="lobby-characters">{characters.map((character) => {
           const race = findRace(character.race);
           const characterClass = findClass(character.character_class);
-          return <article key={character.id}><div className="lobby-avatar"><CharacterAvatar appearance={(character.appearance as Appearance) ?? DEFAULT_APPEARANCE} characterClass={character.character_class} name={character.name} race={character.race} /></div><div><small>LEVEL {character.level}</small><h3>{character.name}</h3><p>{race?.label} · {characterClass?.label}</p><span>HP {character.hp_current}/{character.hp_max}</span></div><i>Character Sheet ในขั้นถัดไป</i></article>;
+          return <Link className="lobby-character-card" href={`/characters/${character.id}`} key={character.id}><div className="lobby-avatar"><CharacterAvatar appearance={(character.appearance as Appearance) ?? DEFAULT_APPEARANCE} characterClass={character.character_class} name={character.name} race={character.race} /></div><div><small>LEVEL {character.level}</small><h3>{character.name}</h3><p>{race?.label} · {characterClass?.label}</p><span>HP {character.hp_current}/{character.hp_max}</span></div><i>เปิด Character Sheet →</i></Link>;
         })}</div> : <div className="lobby-empty"><span>✦</span><h3>ยังไม่มีตัวละคร</h3><p>เข้าสู่ Character Forge เพื่อสร้างผู้ผจญภัยคนแรก</p><Link href="/characters/new">สร้างตัวละครแรก →</Link></div>}
         <div className="lobby-next">
           <article><span>01 · READY</span><h2>สร้างตัวละคร</h2><p>เลือกเผ่า คลาส ค่าสถานะ และรูปลักษณ์เริ่มต้น</p></article>
-          <article><span>02 · NEXT</span><h2>Character Sheet</h2><p>ดูและแก้ไข HP, stats และ inventory เบื้องต้น</p></article>
-          <article><span>03 · PLANNED</span><h2>เข้าห้องปาร์ตี้</h2><p>ใช้รหัสห้องเพื่อพบเพื่อนอย่างปลอดภัย</p></article>
+          <article><span>02 · READY</span><h2>Character Sheet</h2><p>ดูและแก้ไข HP, stats และ inventory เบื้องต้น</p></article>
+          <article><span>03 · NEXT</span><h2>ทอยเต๋าพร้อมกัน</h2><p>ส่งผลเต๋าแบบ real-time ให้ผู้เล่นในห้องเห็นพร้อมกัน</p></article>
         </div>
       </section>
     </main>
