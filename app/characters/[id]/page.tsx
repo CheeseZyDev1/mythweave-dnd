@@ -4,6 +4,7 @@ import { createClient } from "../../../lib/supabase/server";
 import { DEFAULT_APPEARANCE, type Appearance, type Stats } from "../../../lib/characters/catalog";
 import type { InventoryItem } from "../../../lib/characters/sheet";
 import { CharacterSheet } from "./character-sheet";
+import type { WalletTransaction } from "../../../lib/wallet/types";
 
 export const metadata: Metadata = { title: "Character Sheet — Mythweave" };
 
@@ -20,6 +21,10 @@ export default async function CharacterSheetPage({ params }: Props) {
     .eq("id", id)
     .maybeSingle();
   if (!character) notFound();
+  const [{ data: wallet }, { data: transactions }] = await Promise.all([
+    supabase.from("character_wallets").select("balance_copper").eq("character_id",id).maybeSingle(),
+    supabase.from("wallet_transactions").select("*").eq("character_id",id).order("created_at",{ascending:false}).limit(20),
+  ]);
 
   const stats: Stats = {
     strength: character.strength,
@@ -30,7 +35,7 @@ export default async function CharacterSheetPage({ params }: Props) {
     charisma: character.charisma,
   };
 
-  return <CharacterSheet character={{
+  return <CharacterSheet wallet={{balance:wallet?.balance_copper??0,transactions:(transactions??[]) as WalletTransaction[]}} character={{
     id: character.id,
     name: character.name,
     race: character.race,
@@ -45,4 +50,3 @@ export default async function CharacterSheetPage({ params }: Props) {
     updatedAt: character.updated_at,
   }} />;
 }
-

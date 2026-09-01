@@ -58,7 +58,21 @@ try {
 
   const sheetResponse = await fetch(`${appUrl}/characters/${characterId}`, { headers: { Cookie: cookie } });
   const sheetHtml = await sheetResponse.text();
-  if (!sheetResponse.ok || !sheetHtml.includes("Aria Forge") || !sheetHtml.includes("Character Sheet")) throw new Error("Character Sheet did not render.");
+  if (!sheetResponse.ok || !sheetHtml.includes("Aria Forge") || !sheetHtml.includes("Character Sheet") || !sheetHtml.includes("กระเป๋าเหรียญ")) throw new Error("Character Sheet or wallet did not render.");
+
+  const { data: initialWallet, error: initialWalletError } = await supabase.from("character_wallets").select("balance_copper").eq("character_id", characterId).single();
+  if (initialWalletError || initialWallet.balance_copper !== 1000) throw initialWalletError ?? new Error("Starting wallet balance is incorrect.");
+  async function walletAdjust(amountCopper, reason) {
+    const response = await fetch(`${appUrl}/api/wallet`, { method: "POST", headers: { "Content-Type": "application/json", Cookie: cookie }, body: JSON.stringify({ characterId, amountCopper, reason }) });
+    return { response, body: await response.json() };
+  }
+  const income = await walletAdjust(250, "Quest reward");
+  const expense = await walletAdjust(-500, "Buy supplies");
+  if (!income.response.ok || income.body.transaction?.balance_after !== 1250 || !expense.response.ok || expense.body.transaction?.balance_after !== 750) throw new Error("Wallet income or expense was calculated incorrectly.");
+  const overdraft = await walletAdjust(-1000, "Impossible purchase");
+  if (overdraft.response.status !== 409) throw new Error("Wallet allowed a negative balance.");
+  const { data: ledger, error: ledgerError } = await supabase.from("wallet_transactions").select("delta_copper,balance_after").eq("character_id", characterId).order("created_at");
+  if (ledgerError || ledger.length !== 3 || ledger.at(-1).balance_after !== 750) throw ledgerError ?? new Error("Wallet ledger is incomplete.");
 
   const updateResponse = await fetch(`${appUrl}/api/characters/${characterId}`, {
     method: "PATCH",
@@ -80,8 +94,10 @@ try {
   const outsider = createClient(url, publishableKey, { auth: { persistSession: false } });
   const { data: hiddenCharacters, error: outsiderError } = await outsider.from("characters").select("id").eq("id", characterId);
   if (outsiderError || hiddenCharacters.length !== 0) throw outsiderError ?? new Error("RLS exposed a character to an unauthenticated client.");
+  const { data: hiddenWallets, error: hiddenWalletError } = await outsider.from("character_wallets").select("character_id").eq("character_id", characterId);
+  if (hiddenWalletError || hiddenWallets.length !== 0) throw hiddenWalletError ?? new Error("RLS exposed a wallet to an unauthenticated client.");
 
-  console.log(JSON.stringify({ signup: true, apiCreate: true, invalidPayloadRejected: true, racialBonus: character.dexterity === 17, lobbyRender: true, sheetRender: true, sheetUpdate: true, inventoryPersistence: true, rlsOwnerRead: true, rlsPublicDenied: true }));
+  console.log(JSON.stringify({ signup: true, apiCreate: true, invalidPayloadRejected: true, racialBonus: character.dexterity === 17, lobbyRender: true, sheetRender: true, sheetUpdate: true, inventoryPersistence: true, walletStartingFunds: true, walletLedger: true, overdraftRejected: true, rlsOwnerRead: true, rlsPublicDenied: true }));
 } finally {
   if (characterId) await supabase.from("characters").delete().eq("id", characterId);
   if (userId) await fetch(`${url}/auth/v1/admin/users/${userId}`, { method: "DELETE", headers: { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}` } });

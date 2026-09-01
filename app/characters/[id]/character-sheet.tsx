@@ -6,6 +6,8 @@ import { findClass, findRace, STAT_KEYS, STAT_LABELS, type Appearance, type Stat
 import { abilityModifier } from "../../../lib/characters/rules";
 import type { InventoryItem } from "../../../lib/characters/sheet";
 import { CharacterAvatar } from "../character-avatar";
+import type { WalletTransaction } from "../../../lib/wallet/types";
+import { WalletPanel } from "./wallet-panel";
 
 type Character = {
   id: string;
@@ -34,7 +36,7 @@ function signed(value: number) {
   return value >= 0 ? `+${value}` : String(value);
 }
 
-export function CharacterSheet({ character }: { character: Character }) {
+export function CharacterSheet({ character, wallet }: { character: Character; wallet: { balance: number; transactions: WalletTransaction[] } }) {
   const [stats, setStats] = useState(character.stats);
   const [hpCurrent, setHpCurrent] = useState(character.hpCurrent);
   const [hpMax, setHpMax] = useState(character.hpMax);
@@ -123,10 +125,10 @@ export function CharacterSheet({ character }: { character: Character }) {
               </div>)}
             </div> : <div className="inventory-empty"><span>◇</span><p>กระเป๋ายังว่างเปล่า</p><button onClick={addItem}>เพิ่มสิ่งของชิ้นแรก</button></div>}
           </section>
+          <WalletPanel characterId={character.id} initialBalance={wallet.balance} initialTransactions={wallet.transactions} />
           <div className={`sheet-save-note ${status}`}>{message || "การเปลี่ยนแปลงจะยังไม่ถูกส่งจนกดบันทึก"}</div>
         </div>
       </section>
     </main>
   );
 }
-
