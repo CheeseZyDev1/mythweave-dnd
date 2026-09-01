@@ -62,6 +62,9 @@ export function WalletPanel({
       <a className="wallet-shop-link" href={`/shop?character=${characterId}`}>
         เข้าสู่ร้านค้า NPC →
       </a>
+      <a className="wallet-shop-link" href={`/quests?character=${characterId}`}>
+        เปิด Quest Log →
+      </a>
       <div className="coin-grid">
         {[
           ["PP", coins.platinum],

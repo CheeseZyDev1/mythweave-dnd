@@ -90,6 +90,20 @@ try {
   const excessivePurchase = await shopTrade("buy", 99);
   if (excessivePurchase.response.status !== 409) throw new Error("Shop allowed purchase beyond wallet balance.");
 
+  const { data: questTemplate, error: questTemplateError } = await supabase.from("quest_templates").select("id,title_th,objective_template,reward_template").order("id").limit(1).single();
+  if (questTemplateError) throw questTemplateError;
+  const questPage = await fetch(`${appUrl}/quests?character=${characterId}`, { headers: { Cookie: cookie } });
+  if (!questPage.ok || !(await questPage.text()).includes("บันทึกภารกิจ")) throw new Error("Quest Log page did not render.");
+  async function questAction(action, payload) { const response=await fetch(`${appUrl}/api/quests`,{method:"POST",headers:{"Content-Type":"application/json",Cookie:cookie},body:JSON.stringify({action,...payload})});return{response,body:await response.json()}; }
+  const acceptedQuest=await questAction("accept",{characterId,templateId:questTemplate.id});
+  if(acceptedQuest.response.status!==201||acceptedQuest.body.quest?.status!=="active")throw new Error(`Quest acceptance failed: ${JSON.stringify(acceptedQuest.body)}`);
+  const duplicateQuest=await questAction("accept",{characterId,templateId:questTemplate.id});if(duplicateQuest.response.status!==409)throw new Error("Duplicate quest was accepted.");
+  let progressedQuest;for(let step=0;step<questTemplate.objective_template.target_count;step++)progressedQuest=await questAction("advance",{questId:acceptedQuest.body.quest.id,amount:1});
+  if(!progressedQuest.response.ok||progressedQuest.body.quest?.status!=="completed")throw new Error("Quest did not complete at target progress.");
+  const duplicateReward=await questAction("advance",{questId:acceptedQuest.body.quest.id,amount:1});if(duplicateReward.response.status!==409)throw new Error("Completed quest granted progress twice.");
+  const [{data:rewardedCharacter},{data:rewardedWallet}]=await Promise.all([supabase.from("characters").select("experience").eq("id",characterId).single(),supabase.from("character_wallets").select("balance_copper").eq("character_id",characterId).single()]);
+  if(rewardedCharacter.experience!==questTemplate.reward_template.xp||rewardedWallet.balance_copper!==expectedAfterSale+questTemplate.reward_template.gold*100)throw new Error("Quest rewards were not applied correctly.");
+
   const updateResponse = await fetch(`${appUrl}/api/characters/${characterId}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json", Cookie: cookie },
@@ -114,8 +128,9 @@ try {
   if (hiddenWalletError || hiddenWallets.length !== 0) throw hiddenWalletError ?? new Error("RLS exposed a wallet to an unauthenticated client.");
   const { data: hiddenStacks, error: hiddenStacksError } = await outsider.from("character_item_stacks").select("id").eq("character_id",characterId);
   if (hiddenStacksError || hiddenStacks.length !== 0) throw hiddenStacksError ?? new Error("RLS exposed purchased items.");
+  const {data:hiddenQuests,error:hiddenQuestsError}=await outsider.from("character_quests").select("id").eq("character_id",characterId);if(hiddenQuestsError||hiddenQuests.length!==0)throw hiddenQuestsError??new Error("RLS exposed quest log.");
 
-  console.log(JSON.stringify({ signup: true, apiCreate: true, invalidPayloadRejected: true, racialBonus: character.dexterity === 17, lobbyRender: true, sheetRender: true, sheetUpdate: true, inventoryPersistence: true, walletStartingFunds: true, walletLedger: true, overdraftRejected: true, shopRender: true, shopBuy: true, shopSell: true, excessivePurchaseRejected: true, rlsOwnerRead: true, rlsPublicDenied: true }));
+  console.log(JSON.stringify({ signup: true, apiCreate: true, invalidPayloadRejected: true, racialBonus: character.dexterity === 17, lobbyRender: true, sheetRender: true, sheetUpdate: true, inventoryPersistence: true, walletStartingFunds: true, walletLedger: true, overdraftRejected: true, shopRender: true, shopBuy: true, shopSell: true, excessivePurchaseRejected: true, questLogRender:true,questAccept:true,questComplete:true,questRewardOnce:true, rlsOwnerRead: true, rlsPublicDenied: true }));
 } finally {
   if (characterId) await supabase.from("characters").delete().eq("id", characterId);
   if (userId) await fetch(`${url}/auth/v1/admin/users/${userId}`, { method: "DELETE", headers: { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}` } });
