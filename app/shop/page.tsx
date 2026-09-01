@@ -17,10 +17,11 @@ export default async function ShopPage({ searchParams }: Props) {
     { data: wallet },
     { data: items },
     { data: stacks },
+    { data: haggles },
   ] = await Promise.all([
     supabase
       .from("characters")
-      .select("id,name,race,character_class")
+      .select("id,name,race,character_class,charisma")
       .eq("id", id)
       .maybeSingle(),
     supabase
@@ -38,6 +39,12 @@ export default async function ShopPage({ searchParams }: Props) {
       .from("character_item_stacks")
       .select("id,content_item_id,quantity,acquired_unit_value")
       .eq("character_id", id),
+    supabase
+      .from("shop_haggles")
+      .select("id,content_item_id,dice_roll,charisma_modifier,difficulty_class,discount_percent,expires_at,consumed_at,created_at")
+      .eq("character_id", id)
+      .gt("created_at", new Date(Date.now() - 5 * 60 * 1000).toISOString())
+      .order("created_at", { ascending: false }),
   ]);
   if (!character || !wallet) notFound();
   return (
@@ -46,6 +53,7 @@ export default async function ShopPage({ searchParams }: Props) {
       initialBalance={wallet.balance_copper}
       items={items ?? []}
       initialStacks={stacks ?? []}
+      initialHaggles={haggles ?? []}
     />
   );
 }

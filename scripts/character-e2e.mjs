@@ -82,10 +82,16 @@ try {
   }
   const shopPage = await fetch(`${appUrl}/shop?character=${characterId}`, { headers: { Cookie: cookie } });
   if (!shopPage.ok || !(await shopPage.text()).includes("ร้านค้ากริฟฟินทอง")) throw new Error("NPC shop page did not render.");
+  const haggleResponse = await fetch(`${appUrl}/api/shop/haggle`, { method: "POST", headers: { "Content-Type": "application/json", Cookie: cookie }, body: JSON.stringify({ characterId, itemId: shopItem.id }) });
+  const haggleBody = await haggleResponse.json();
+  if (haggleResponse.status !== 201 || !Number.isInteger(haggleBody.haggle?.dice_roll) || haggleBody.haggle.dice_roll < 1 || haggleBody.haggle.dice_roll > 20 || ![0,10,20].includes(haggleBody.haggle.discount_percent)) throw new Error(`Shop haggling failed: ${haggleResponse.status} ${JSON.stringify(haggleBody)}`);
+  const duplicateHaggle = await fetch(`${appUrl}/api/shop/haggle`, { method: "POST", headers: { "Content-Type": "application/json", Cookie: cookie }, body: JSON.stringify({ characterId, itemId: shopItem.id }) });
+  if (duplicateHaggle.status !== 409) throw new Error("Haggle cooldown did not prevent rerolling.");
   const purchase = await shopTrade("buy", 1);
-  if (!purchase.response.ok || purchase.body.trade?.quantity !== 1 || purchase.body.trade?.balance_copper !== 750-shopItem.base_value) throw new Error(`Shop purchase failed: ${JSON.stringify(purchase.body)}`);
+  const negotiatedPrice = haggleBody.haggle.offer_price;
+  if (!purchase.response.ok || purchase.body.trade?.quantity !== 1 || purchase.body.trade?.unit_price !== negotiatedPrice || purchase.body.trade?.discount_percent !== haggleBody.haggle.discount_percent || purchase.body.trade?.balance_copper !== 750-negotiatedPrice) throw new Error(`Shop purchase failed: ${JSON.stringify(purchase.body)}`);
   const sale = await shopTrade("sell", 1);
-  const expectedAfterSale = 750-shopItem.base_value+Math.max(1,Math.floor(shopItem.base_value*.5));
+  const expectedAfterSale = 750-negotiatedPrice+Math.max(1,Math.floor(shopItem.base_value*.5));
   if (!sale.response.ok || sale.body.trade?.quantity !== 0 || sale.body.trade?.balance_copper !== expectedAfterSale) throw new Error(`Shop sale failed: ${JSON.stringify(sale.body)}`);
   const excessivePurchase = await shopTrade("buy", 99);
   if (excessivePurchase.response.status !== 409) throw new Error("Shop allowed purchase beyond wallet balance.");
@@ -138,8 +144,9 @@ try {
   if (hiddenStacksError || hiddenStacks.length !== 0) throw hiddenStacksError ?? new Error("RLS exposed purchased items.");
   const {data:hiddenQuests,error:hiddenQuestsError}=await outsider.from("character_quests").select("id").eq("character_id",characterId);if(hiddenQuestsError||hiddenQuests.length!==0)throw hiddenQuestsError??new Error("RLS exposed quest log.");
   const {data:hiddenStatuses,error:hiddenStatusesError}=await outsider.from("character_status_effects").select("id").eq("character_id",characterId);if(hiddenStatusesError||hiddenStatuses.length!==0)throw hiddenStatusesError??new Error("RLS exposed status effects.");
+  const {data:hiddenHaggles,error:hiddenHagglesError}=await outsider.from("shop_haggles").select("id").eq("character_id",characterId);if(hiddenHagglesError||hiddenHaggles.length!==0)throw hiddenHagglesError??new Error("RLS exposed haggle attempts.");
 
-  console.log(JSON.stringify({ signup: true, apiCreate: true, invalidPayloadRejected: true, racialBonus: character.dexterity === 17, lobbyRender: true, sheetRender: true, sheetUpdate: true, inventoryPersistence: true, walletStartingFunds: true, walletLedger: true, overdraftRejected: true, shopRender: true, shopBuy: true, shopSell: true, excessivePurchaseRejected: true, questLogRender:true,questAccept:true,questComplete:true,questRewardOnce:true,statusApply:true,statusStacks:true,statusDuration:true,statusRemove:true, rlsOwnerRead: true, rlsPublicDenied: true }));
+  console.log(JSON.stringify({ signup: true, apiCreate: true, invalidPayloadRejected: true, racialBonus: character.dexterity === 17, lobbyRender: true, sheetRender: true, sheetUpdate: true, inventoryPersistence: true, walletStartingFunds: true, walletLedger: true, overdraftRejected: true, shopRender: true, shopHaggle:true,haggleCooldown:true,negotiatedPrice:true,shopBuy: true, shopSell: true, excessivePurchaseRejected: true, questLogRender:true,questAccept:true,questComplete:true,questRewardOnce:true,statusApply:true,statusStacks:true,statusDuration:true,statusRemove:true, rlsOwnerRead: true, rlsPublicDenied: true }));
 } finally {
   if (characterId) await supabase.from("characters").delete().eq("id", characterId);
   if (userId) await fetch(`${url}/auth/v1/admin/users/${userId}`, { method: "DELETE", headers: { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}` } });
