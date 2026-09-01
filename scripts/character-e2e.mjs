@@ -118,6 +118,14 @@ try {
   const removedStatus=await statusAction("remove",{effectId:stackedStatus.body.effect.id});if(!removedStatus.response.ok)throw new Error("Status removal failed.");
   const {data:remainingStatuses}=await supabase.from("character_status_effects").select("id").eq("character_id",characterId);if(remainingStatuses.length!==0)throw new Error("Removed status remained active.");
 
+  const {data:npcProfiles,error:npcProfilesError}=await supabase.from("npc_profiles").select("id,name_th").order("id").limit(2);if(npcProfilesError||npcProfiles.length!==2)throw npcProfilesError??new Error("NPC profiles were not seeded.");
+  const relationshipPage=await fetch(`${appUrl}/relationships?character=${characterId}`,{headers:{Cookie:cookie}});if(!relationshipPage.ok||!(await relationshipPage.text()).includes("สายสัมพันธ์แห่งโลก"))throw new Error("NPC relationship page did not render.");
+  async function affinityAction(npcId,action){const response=await fetch(`${appUrl}/api/npc/affinity`,{method:"POST",headers:{"Content-Type":"application/json",Cookie:cookie},body:JSON.stringify({characterId,npcId,action})});return{response,body:await response.json()};}
+  const talked=await affinityAction(npcProfiles[0].id,"talk");if(talked.response.status!==201||talked.body.affinity?.score!==1||talked.body.affinity?.tier!=="neutral")throw new Error(`NPC talk affinity failed: ${JSON.stringify(talked.body)}`);
+  const affinityCooldown=await affinityAction(npcProfiles[0].id,"help");if(affinityCooldown.response.status!==409)throw new Error("NPC interaction cooldown was not enforced.");
+  const walletBeforeGift=(await supabase.from("character_wallets").select("balance_copper").eq("character_id",characterId).single()).data.balance_copper;
+  const gifted=await affinityAction(npcProfiles[1].id,"gift");if(gifted.response.status!==201||gifted.body.affinity?.score!==5||gifted.body.affinity?.cost_copper!==25||gifted.body.affinity?.wallet_balance!==walletBeforeGift-25)throw new Error(`NPC gift affinity failed: ${JSON.stringify(gifted.body)}`);
+
   const updateResponse = await fetch(`${appUrl}/api/characters/${characterId}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json", Cookie: cookie },
@@ -145,8 +153,9 @@ try {
   const {data:hiddenQuests,error:hiddenQuestsError}=await outsider.from("character_quests").select("id").eq("character_id",characterId);if(hiddenQuestsError||hiddenQuests.length!==0)throw hiddenQuestsError??new Error("RLS exposed quest log.");
   const {data:hiddenStatuses,error:hiddenStatusesError}=await outsider.from("character_status_effects").select("id").eq("character_id",characterId);if(hiddenStatusesError||hiddenStatuses.length!==0)throw hiddenStatusesError??new Error("RLS exposed status effects.");
   const {data:hiddenHaggles,error:hiddenHagglesError}=await outsider.from("shop_haggles").select("id").eq("character_id",characterId);if(hiddenHagglesError||hiddenHaggles.length!==0)throw hiddenHagglesError??new Error("RLS exposed haggle attempts.");
+  const {data:hiddenAffinity,error:hiddenAffinityError}=await outsider.from("character_npc_affinity").select("id").eq("character_id",characterId);if(hiddenAffinityError||hiddenAffinity.length!==0)throw hiddenAffinityError??new Error("RLS exposed NPC affinity.");
 
-  console.log(JSON.stringify({ signup: true, apiCreate: true, invalidPayloadRejected: true, racialBonus: character.dexterity === 17, lobbyRender: true, sheetRender: true, sheetUpdate: true, inventoryPersistence: true, walletStartingFunds: true, walletLedger: true, overdraftRejected: true, shopRender: true, shopHaggle:true,haggleCooldown:true,negotiatedPrice:true,shopBuy: true, shopSell: true, excessivePurchaseRejected: true, questLogRender:true,questAccept:true,questComplete:true,questRewardOnce:true,statusApply:true,statusStacks:true,statusDuration:true,statusRemove:true, rlsOwnerRead: true, rlsPublicDenied: true }));
+  console.log(JSON.stringify({ signup: true, apiCreate: true, invalidPayloadRejected: true, racialBonus: character.dexterity === 17, lobbyRender: true, sheetRender: true, sheetUpdate: true, inventoryPersistence: true, walletStartingFunds: true, walletLedger: true, overdraftRejected: true, shopRender: true, shopHaggle:true,haggleCooldown:true,negotiatedPrice:true,shopBuy: true, shopSell: true, excessivePurchaseRejected: true, questLogRender:true,questAccept:true,questComplete:true,questRewardOnce:true,statusApply:true,statusStacks:true,statusDuration:true,statusRemove:true,npcAffinityPage:true,npcAffinityTalk:true,npcAffinityGift:true,npcAffinityCooldown:true, rlsOwnerRead: true, rlsPublicDenied: true }));
 } finally {
   if (characterId) await supabase.from("characters").delete().eq("id", characterId);
   if (userId) await fetch(`${url}/auth/v1/admin/users/${userId}`, { method: "DELETE", headers: { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}` } });

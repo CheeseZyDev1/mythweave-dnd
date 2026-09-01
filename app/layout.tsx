@@ -4,6 +4,7 @@ import "./tailwind.css";
 import "./globals.css";
 import "./dm-console.css";
 import "./shop-haggle.css";
+import "./relationships.css";
 
 const cinzel = Cinzel({ subsets: ["latin"], variable: "--font-cinzel" });
 const thai = Noto_Sans_Thai({ subsets: ["thai"], variable: "--font-thai" });

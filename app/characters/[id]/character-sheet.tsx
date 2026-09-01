@@ -106,6 +106,7 @@ export function CharacterSheet({ character, wallet, statuses }: { character: Cha
             <div><strong>{passivePerception}</strong><span>Passive WIS</span></div>
           </div>
           <p className="sheet-updated">แก้ไขล่าสุด {new Date(character.updatedAt).toLocaleString("th-TH")}</p>
+          <Link className="wallet-shop-link" href={`/relationships?character=${character.id}`}>สายสัมพันธ์ NPC →</Link>
         </aside>
 
         <div className="sheet-main">
