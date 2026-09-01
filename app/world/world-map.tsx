@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { Appearance } from "../../lib/characters/catalog";
+import { getWorldTime } from "../../lib/world/time";
 import { CharacterAvatar } from "../characters/character-avatar";
 
 type Location = {
@@ -78,6 +79,7 @@ export function WorldMap({
   const [travelling, setTravelling] = useState(false);
   const [journey, setJourney] = useState<Journey | null>(initialJourney);
   const [message, setMessage] = useState("");
+  const worldTime = getWorldTime(worldHours);
   const current = locations.find((location) => location.id === currentId) ?? points[0];
   const selected = locations.find((location) => location.id === selectedId) ?? current;
 
@@ -151,7 +153,7 @@ export function WorldMap({
   }
 
   return (
-    <main className="world-shell">
+    <main className={`world-shell world-time-${worldTime.phase}`} data-time-phase={worldTime.phase}>
       {travelling && (
         <div className="travel-loading" role="status">
           <div className="travel-road"><span>♞</span></div>
@@ -187,6 +189,7 @@ export function WorldMap({
           <span>ตำแหน่งปัจจุบัน</span>
           <strong>{current?.name_th}</strong>
           <small>{current?.name_en}</small>
+          <span className="world-clock">วันที่ {worldTime.day} · {worldTime.clock} · {worldTime.label}</span>
           <span>เวลาโลกสะสม {worldHours} ชั่วโมง</span>
         </div>
       </section>
