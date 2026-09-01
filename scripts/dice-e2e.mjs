@@ -64,6 +64,33 @@ try {
   const { data: roles, error: rolesError } = await host.client.from("dice_table_members").select("user_id,role").eq("table_id", created.tableId);
   if (rolesError || roles.find((member) => member.user_id === users[0])?.role !== "dm" || roles.find((member) => member.user_id === users[1])?.role !== "spectator") throw rolesError ?? new Error("Room roles were not persisted correctly.");
 
+  let chatResolve;
+  let chatReject;
+  const chatEvent = new Promise((resolve, reject) => { chatResolve = resolve; chatReject = reject; });
+  const chatChannel = guest.client.channel(`chat-e2e-${suffix}`).on("postgres_changes", {
+    event: "INSERT", schema: "public", table: "room_messages", filter: `table_id=eq.${created.tableId}`,
+  }, (payload) => chatResolve(payload.new));
+  await new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("Chat subscription timed out.")), 10000);
+    chatChannel.subscribe((status) => {
+      if (status === "SUBSCRIBED") { clearTimeout(timer); resolve(); }
+      if (status === "CHANNEL_ERROR") { clearTimeout(timer); reject(new Error("Chat channel error.")); }
+    });
+  });
+  const chatTimer = setTimeout(() => chatReject(new Error("Guest did not receive room chat.")), 10000);
+  const chatResponse = await fetch(`${appUrl}/api/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Cookie: host.cookie() },
+    body: JSON.stringify({ tableId: created.tableId, content: "Gather at the old gate." }),
+  });
+  const chatBody = await chatResponse.json();
+  if (chatResponse.status !== 201 || chatBody.message?.sender_role !== "dm") throw new Error(`Chat send failed: ${chatResponse.status} ${JSON.stringify(chatBody)}`);
+  const receivedChat = await chatEvent;
+  clearTimeout(chatTimer);
+  if (receivedChat.id !== chatBody.message.id || receivedChat.content !== "Gather at the old gate.") throw new Error("Realtime chat did not match the stored message.");
+  const longChatResponse = await fetch(`${appUrl}/api/chat`, { method: "POST", headers: { "Content-Type": "application/json", Cookie: guest.cookie() }, body: JSON.stringify({ tableId: created.tableId, content: "x".repeat(501) }) });
+  if (longChatResponse.status !== 400) throw new Error("Oversized chat message was not rejected.");
+
   let eventResolve;
   let eventReject;
   const realtimeEvent = new Promise((resolve, reject) => { eventResolve = resolve; eventReject = reject; });
@@ -141,10 +168,13 @@ try {
   if (publicReadError || publicRolls.length !== 0) throw publicReadError ?? new Error("RLS exposed rolls to the public.");
   const { data: publicInitiative, error: publicInitiativeError } = await outsider.from("initiative_entries").select("id").eq("table_id", created.tableId);
   if (publicInitiativeError || publicInitiative.length !== 0) throw publicInitiativeError ?? new Error("RLS exposed initiative entries to the public.");
+  const { data: publicMessages, error: publicMessagesError } = await outsider.from("room_messages").select("id").eq("table_id", created.tableId);
+  if (publicMessagesError || publicMessages.length !== 0) throw publicMessagesError ?? new Error("RLS exposed room chat to the public.");
 
   await guest.client.removeChannel(channel);
   await guest.client.removeChannel(initiativeChannel);
-  console.log(JSON.stringify({ privateTable: true, inviteJoin: true, roomRoles: true, serverRoll: true, realtimeToGuest: true, invalidDiceRejected: true, initiativeOrder: true, initiativeRealtime: true, roundAdvance: true, memberRead: true, publicDenied: true, total: received.total }));
+  await guest.client.removeChannel(chatChannel);
+  console.log(JSON.stringify({ privateTable: true, inviteJoin: true, roomRoles: true, roomChat: true, chatRealtime: true, oversizedChatRejected: true, serverRoll: true, realtimeToGuest: true, invalidDiceRejected: true, initiativeOrder: true, initiativeRealtime: true, roundAdvance: true, memberRead: true, publicDenied: true, total: received.total }));
 } finally {
   for (const client of browserClients) client.realtime.disconnect();
   for (const userId of users) await admin.auth.admin.deleteUser(userId);
