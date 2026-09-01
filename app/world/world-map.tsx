@@ -39,6 +39,7 @@ type Journey = {
   encounterDescription: string;
 };
 type Weather = { slug: string; name_th: string; description_th: string; symbol: string; travel_note_th: string; intensity: number; period_index: number; next_change_in_hours: number };
+type VillageEvent = { id: string; title_th: string; description_th: string; event_type: string; reward_copper: number; status: string; world_day: number; location_id: number };
 const typeLabels: Record<string, string> = {
   major_city: "เมืองใหญ่",
   small_town: "หมู่บ้าน",
@@ -53,6 +54,7 @@ export function WorldMap({
   initialLocationId,
   initialWorldHours,
   initialWeather,
+  initialVillageEvent,
   initialJourney,
 }: {
   character: {
@@ -67,6 +69,7 @@ export function WorldMap({
   initialLocationId: number;
   initialWorldHours: number;
   initialWeather: Weather;
+  initialVillageEvent: VillageEvent | null;
   initialJourney: Journey | null;
 }) {
   const points = useMemo(
@@ -83,6 +86,7 @@ export function WorldMap({
   const [journey, setJourney] = useState<Journey | null>(initialJourney);
   const [message, setMessage] = useState("");
   const [weather, setWeather] = useState(initialWeather);
+  const [villageEvent, setVillageEvent] = useState(initialVillageEvent);
   const worldTime = getWorldTime(worldHours);
   const current = locations.find((location) => location.id === currentId) ?? points[0];
   const selected = locations.find((location) => location.id === selectedId) ?? current;
@@ -95,9 +99,10 @@ export function WorldMap({
         route.from_location_id === selected?.id),
   );
 
-  async function refreshWeather() {
-    const response = await fetch(`/api/world/weather?character=${character.id}`);
-    if (response.ok) setWeather((await response.json()).weather);
+  async function refreshWorldContext() {
+    const [weatherResponse, eventResponse] = await Promise.all([fetch(`/api/world/weather?character=${character.id}`), fetch(`/api/world/events?character=${character.id}`)]);
+    if (weatherResponse.ok) setWeather((await weatherResponse.json()).weather);
+    if (eventResponse.ok) setVillageEvent((await eventResponse.json()).event);
   }
 
   async function travel(mode: Route["travel_mode"]) {
@@ -124,7 +129,7 @@ export function WorldMap({
         );
       }
       setWorldHours(result.travel.world_hours_elapsed ?? worldHours);
-      await refreshWeather();
+      await refreshWorldContext();
       if (result.travel.interrupted) {
         setJourney({ id: result.travel.journey_id, destinationId: result.travel.destination_id, mode, durationHours: result.travel.duration_hours, elapsedHours: result.travel.elapsed_hours, encounterName: result.travel.encounter.name_th, encounterDescription: result.travel.encounter.description_th });
         setMessage("การเดินทางถูกขัดจังหวะ · ต้องจัดการเหตุการณ์ก่อนไปต่อ");
@@ -153,7 +158,7 @@ export function WorldMap({
       setCurrentId(result.travel.location_id);
       setSelectedId(result.travel.location_id);
       setWorldHours(result.travel.world_hours_elapsed);
-      await refreshWeather();
+      await refreshWorldContext();
       setJourney(null);
       setMessage(`ผ่านเหตุการณ์และเดินทางถึง ${result.travel.location_name} แล้ว`);
     } catch (caught) {
@@ -161,6 +166,15 @@ export function WorldMap({
     } finally {
       setTravelling(false);
     }
+  }
+
+  async function resolveVillageEvent(action: "participate" | "ignore") {
+    if (!villageEvent) return;
+    const response = await fetch("/api/world/events", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ characterId: character.id, eventId: villageEvent.id, action }) });
+    const result = await response.json();
+    if (!response.ok) return setMessage("เหตุการณ์นี้ถูกจัดการไปแล้ว");
+    setVillageEvent((current) => current ? { ...current, status: result.event.status } : null);
+    setMessage(action === "participate" ? `ชาวบ้านมอบ ${result.event.reward_copper} CP เป็นค่าตอบแทน` : "คุณเลือกไม่เข้าร่วมเหตุการณ์นี้");
   }
 
   return (
@@ -205,6 +219,7 @@ export function WorldMap({
         </div>
       </section>
       <section className="weather-panel"><b>{weather.symbol} {weather.name_th}</b><span>{weather.description_th}</span><small>ระดับ {weather.intensity}/3 · เปลี่ยนในอีก {weather.next_change_in_hours} ชม.</small><i>{weather.travel_note_th}</i></section>
+      {villageEvent && <section className={`village-event ${villageEvent.status}`}><small>VILLAGE EVENT · DAY {villageEvent.world_day} · {villageEvent.event_type}</small><h3>{villageEvent.title_th}</h3><p>{villageEvent.description_th}</p>{villageEvent.status === "active" ? <div><button onClick={() => resolveVillageEvent("participate")}>เข้าร่วม · +{villageEvent.reward_copper} CP</button><button onClick={() => resolveVillageEvent("ignore")}>ผ่านไป</button></div> : <b>เหตุการณ์สิ้นสุดแล้ว</b>}</section>}
       {message && <p className="world-message">{message}</p>}
       <section className="interactive-map">
         <img alt="แผนที่ทวีปเอเธอร์รา" src="/assets/worldmap.png" />
