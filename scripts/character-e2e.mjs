@@ -60,7 +60,7 @@ try {
 
   const sheetResponse = await fetch(`${appUrl}/characters/${characterId}`, { headers: { Cookie: cookie } });
   const sheetHtml = await sheetResponse.text();
-  if (!sheetResponse.ok || !sheetHtml.includes("Aria Forge") || !sheetHtml.includes("Character Sheet") || !sheetHtml.includes("กระเป๋าเหรียญ") || !sheetHtml.includes("ตำนานเผ่าของฉัน")||!sheetHtml.includes(assignedInnate.name_th)||!sheetHtml.includes(assignedInnate.usage_rule_th)) throw new Error("Character Sheet, wallet, race lore link, or innate gift did not render.");
+  if (!sheetResponse.ok || !sheetHtml.includes("Aria Forge") || !sheetHtml.includes("Character Sheet") || !sheetHtml.includes("กระเป๋าเหรียญ") || !sheetHtml.includes("ตำนานเผ่าของฉัน")||!sheetHtml.includes("สมุดบันทึกอสูร")||!sheetHtml.includes(assignedInnate.name_th)||!sheetHtml.includes(assignedInnate.usage_rule_th)) throw new Error("Character Sheet, wallet, codex links, or innate gift did not render.");
 
   const {data:raceLore,error:raceLoreError}=await supabase.from("race_lore").select("race_id,name_th,title_th,starting_location_id,world_locations(slug)").order("race_id");if(raceLoreError||raceLore.length!==6||new Set(raceLore.map(entry=>entry.starting_location_id)).size!==6)throw raceLoreError??new Error("Race lore or starting zones were not seeded.");
   const raceLoreIndex=await fetch(`${appUrl}/lore/races?character=${characterId}`,{headers:{Cookie:cookie}});const raceLoreIndexHtml=await raceLoreIndex.text();if(!raceLoreIndex.ok||!raceLoreIndexHtml.includes("ชนเผ่าแห่งเอเธอร์รา")||raceLore.some(entry=>!raceLoreIndexHtml.includes(entry.name_th)))throw new Error("Race lore index did not render all six races.");

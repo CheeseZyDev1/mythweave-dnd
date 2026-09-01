@@ -14,6 +14,7 @@ import "./world.css";
 import "./fast-travel.css";
 import "./vehicle-travel.css";
 import "./race-lore.css";
+import "./bestiary.css";
 
 const cinzel = Cinzel({ subsets: ["latin"], variable: "--font-cinzel" });
 const thai = Noto_Sans_Thai({ subsets: ["thai"], variable: "--font-thai" });
