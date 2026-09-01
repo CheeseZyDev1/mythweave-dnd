@@ -38,6 +38,7 @@ type Journey = {
   encounterName: string;
   encounterDescription: string;
 };
+type Weather = { slug: string; name_th: string; description_th: string; symbol: string; travel_note_th: string; intensity: number; period_index: number; next_change_in_hours: number };
 const typeLabels: Record<string, string> = {
   major_city: "เมืองใหญ่",
   small_town: "หมู่บ้าน",
@@ -51,6 +52,7 @@ export function WorldMap({
   routes,
   initialLocationId,
   initialWorldHours,
+  initialWeather,
   initialJourney,
 }: {
   character: {
@@ -64,6 +66,7 @@ export function WorldMap({
   routes: Route[];
   initialLocationId: number;
   initialWorldHours: number;
+  initialWeather: Weather;
   initialJourney: Journey | null;
 }) {
   const points = useMemo(
@@ -79,6 +82,7 @@ export function WorldMap({
   const [travelling, setTravelling] = useState(false);
   const [journey, setJourney] = useState<Journey | null>(initialJourney);
   const [message, setMessage] = useState("");
+  const [weather, setWeather] = useState(initialWeather);
   const worldTime = getWorldTime(worldHours);
   const current = locations.find((location) => location.id === currentId) ?? points[0];
   const selected = locations.find((location) => location.id === selectedId) ?? current;
@@ -90,6 +94,11 @@ export function WorldMap({
       (route.to_location_id === current?.id &&
         route.from_location_id === selected?.id),
   );
+
+  async function refreshWeather() {
+    const response = await fetch(`/api/world/weather?character=${character.id}`);
+    if (response.ok) setWeather((await response.json()).weather);
+  }
 
   async function travel(mode: Route["travel_mode"]) {
     if (!selected) return;
@@ -115,6 +124,7 @@ export function WorldMap({
         );
       }
       setWorldHours(result.travel.world_hours_elapsed ?? worldHours);
+      await refreshWeather();
       if (result.travel.interrupted) {
         setJourney({ id: result.travel.journey_id, destinationId: result.travel.destination_id, mode, durationHours: result.travel.duration_hours, elapsedHours: result.travel.elapsed_hours, encounterName: result.travel.encounter.name_th, encounterDescription: result.travel.encounter.description_th });
         setMessage("การเดินทางถูกขัดจังหวะ · ต้องจัดการเหตุการณ์ก่อนไปต่อ");
@@ -143,6 +153,7 @@ export function WorldMap({
       setCurrentId(result.travel.location_id);
       setSelectedId(result.travel.location_id);
       setWorldHours(result.travel.world_hours_elapsed);
+      await refreshWeather();
       setJourney(null);
       setMessage(`ผ่านเหตุการณ์และเดินทางถึง ${result.travel.location_name} แล้ว`);
     } catch (caught) {
@@ -153,7 +164,7 @@ export function WorldMap({
   }
 
   return (
-    <main className={`world-shell world-time-${worldTime.phase}`} data-time-phase={worldTime.phase}>
+    <main className={`world-shell world-time-${worldTime.phase} weather-${weather.slug}`} data-time-phase={worldTime.phase} data-weather={weather.slug}>
       {travelling && (
         <div className="travel-loading" role="status">
           <div className="travel-road"><span>♞</span></div>
@@ -193,6 +204,7 @@ export function WorldMap({
           <span>เวลาโลกสะสม {worldHours} ชั่วโมง</span>
         </div>
       </section>
+      <section className="weather-panel"><b>{weather.symbol} {weather.name_th}</b><span>{weather.description_th}</span><small>ระดับ {weather.intensity}/3 · เปลี่ยนในอีก {weather.next_change_in_hours} ชม.</small><i>{weather.travel_note_th}</i></section>
       {message && <p className="world-message">{message}</p>}
       <section className="interactive-map">
         <img alt="แผนที่ทวีปเอเธอร์รา" src="/assets/worldmap.png" />
