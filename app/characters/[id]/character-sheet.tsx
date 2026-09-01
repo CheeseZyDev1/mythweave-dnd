@@ -112,6 +112,7 @@ export function CharacterSheet({ character, wallet, statuses }: { character: Cha
           <Link className="wallet-shop-link" href={`/crafting/brewing?character=${character.id}`}>โต๊ะปรุงยา →</Link>
           <Link className="wallet-shop-link" href={`/forge?character=${character.id}`}>เตาหลอม Relic →</Link>
           <Link className="wallet-shop-link" href={`/world?character=${character.id}`}>แผนที่โลก →</Link>
+          <Link className="wallet-shop-link" href={`/lore/races/${character.race}?character=${character.id}`}>ตำนานเผ่าของฉัน →</Link>
         </aside>
 
         <div className="sheet-main">
