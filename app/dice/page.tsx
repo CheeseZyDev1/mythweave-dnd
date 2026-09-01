@@ -12,6 +12,7 @@ import type { NpcDialogue } from "../../lib/npc/types";
 import type { DmNarration } from "../../lib/dm/types";
 import type { GeneratedMonster } from "../../lib/monsters/types";
 import { DiceTable } from "./dice-table";
+import type { RoomHomunculus, RoomHomunculusCommand } from "./homunculus-room-panel";
 
 export const metadata: Metadata = { title: "Realtime Dice — Mythweave" };
 
@@ -35,6 +36,8 @@ export default async function DicePage({ searchParams }: Props) {
   let npcHistory: NpcDialogue[] = [];
   let narrations: DmNarration[] = [];
   let monsters: GeneratedMonster[] = [];
+  let companions: RoomHomunculus[] = [];
+  let companionCommands: RoomHomunculusCommand[] = [];
   if (tableId) {
     const { data } = await supabase
       .from("dice_tables")
@@ -52,7 +55,7 @@ export default async function DicePage({ searchParams }: Props) {
         { data: saveData },
         { data: npcData },
         { data: narrationData },
-        { data: monsterData },
+        { data: monsterData },{data:companionData},{data:companionCommandData},
       ] = await Promise.all([
         supabase
           .from("dice_rolls")
@@ -85,6 +88,8 @@ export default async function DicePage({ searchParams }: Props) {
         supabase.from("npc_dialogue_history").select("*").eq("table_id",table.id).order("created_at",{ascending:false}).limit(20),
         supabase.from("dm_narrations").select("*").eq("table_id",table.id).order("created_at",{ascending:false}).limit(10),
         supabase.from("generated_monsters").select("*").eq("table_id",table.id).order("created_at",{ascending:false}).limit(12),
+        supabase.from("homunculus_companions").select("id,name,stance,hp_current,hp_max,active_table_id").eq("active_table_id",table.id),
+        supabase.from("homunculus_commands").select("id,companion_id,command,response_th,created_at").eq("table_id",table.id).order("created_at",{ascending:false}).limit(20),
       ]);
       rolls = (rollData ?? []).reverse() as DiceRoll[];
       members = memberData ?? [];
@@ -95,6 +100,7 @@ export default async function DicePage({ searchParams }: Props) {
       npcHistory = ((npcData ?? []) as NpcDialogue[]).reverse();
       narrations = ((narrationData ?? []) as DmNarration[]).reverse();
       monsters = (monsterData ?? []) as GeneratedMonster[];
+      companions=(companionData??[])as RoomHomunculus[];companionCommands=(companionCommandData??[])as RoomHomunculusCommand[];
     }
   }
 
@@ -112,6 +118,8 @@ export default async function DicePage({ searchParams }: Props) {
       initialNpcHistory={npcHistory}
       initialNarrations={narrations}
       initialMonsters={monsters}
+      initialCompanions={companions}
+      initialCompanionCommands={companionCommands}
     />
   );
 }

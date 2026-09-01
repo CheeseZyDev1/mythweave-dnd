@@ -19,6 +19,7 @@ import { NpcDialoguePanel } from "./npc-dialogue";
 import type { DmNarration } from "../../lib/dm/types";
 import { ManualDmConsole } from "./manual-dm-console";
 import type { GeneratedMonster } from "../../lib/monsters/types";
+import {HomunculusRoomPanel,type RoomHomunculus,type RoomHomunculusCommand}from"./homunculus-room-panel";
 import { MonsterForge } from "./monster-forge";
 
 type TableInfo = { id: string; code: string };
@@ -61,6 +62,7 @@ export function DiceTable({
   initialNpcHistory,
   initialNarrations,
   initialMonsters,
+  initialCompanions,initialCompanionCommands,
 }: {
   initialTable: TableInfo | null;
   initialRolls: DiceRoll[];
@@ -74,6 +76,7 @@ export function DiceTable({
   initialNpcHistory: NpcDialogue[];
   initialNarrations: DmNarration[];
   initialMonsters: GeneratedMonster[];
+  initialCompanions:RoomHomunculus[];initialCompanionCommands:RoomHomunculusCommand[];
 }) {
   const router = useRouter();
   const [table] = useState(initialTable);
@@ -406,6 +409,7 @@ export function DiceTable({
             currentUserId={currentUserId}
             initialMessages={initialMessages}
           />
+          <HomunculusRoomPanel tableId={table.id} initialCompanions={initialCompanions} initialCommands={initialCompanionCommands}/>
           <RoomSavePanel
             tableId={table.id}
             isDm={ownMember?.role === "dm"}

@@ -65,6 +65,16 @@ try {
 
   const { data: roles, error: rolesError } = await host.client.from("dice_table_members").select("user_id,role").eq("table_id", created.tableId);
   if (rolesError || roles.find((member) => member.user_id === users[0])?.role !== "dm" || roles.find((member) => member.user_id === users[1])?.role !== "spectator") throw rolesError ?? new Error("Room roles were not persisted correctly.");
+  const companionCommand=async(command,tableId=null,cookie=host.cookie())=>{const response=await fetch(`${appUrl}/api/companions/command`,{method:"POST",headers:{"Content-Type":"application/json",Cookie:cookie},body:JSON.stringify({characterId:bestiaryCharacterId,command,tableId})});return{response,body:await response.json()};};
+  const freeformCompanion=await companionCommand("เดินไปเปิดหีบ");if(freeformCompanion.response.status!==400||freeformCompanion.body.error!=="invalid_command")throw new Error("Homunculus accepted a free-form or autonomous command.");
+  const prematureCompanion=await companionCommand("guard");if(prematureCompanion.response.status!==409||prematureCompanion.body.error!=="not_summoned")throw new Error("Homunculus acted before being summoned.");
+  const summonedCompanion=await companionCommand("summon",created.tableId);if(summonedCompanion.response.status!==201||summonedCompanion.body.protocol!=="command-only"||summonedCompanion.body.companion?.active_table_id!==created.tableId||!summonedCompanion.body.systemDirective?.includes("never a Dungeon Master"))throw new Error(`Homunculus summon or separate command protocol failed: ${JSON.stringify(summonedCompanion.body)}`);
+  const guardedCompanion=await companionCommand("guard");if(guardedCompanion.response.status!==201||guardedCompanion.body.companion?.stance!=="guarding"||!guardedCompanion.body.command?.response_th.includes("DM"))throw new Error("Homunculus guard command invented an outcome or failed.");
+  const stolenCompanion=await companionCommand("scout",null,guest.cookie());if(stolenCompanion.response.status!==404)throw new Error("Another room member commanded someone else's homunculus.");
+  const {data:guestCompanions,error:guestCompanionsError}=await guest.client.from("homunculus_companions").select("id,name,stance").eq("active_table_id",created.tableId);if(guestCompanionsError||guestCompanions.length!==1||guestCompanions[0].stance!=="guarding")throw guestCompanionsError??new Error("Room member could not see the summoned homunculus state.");
+  const {data:guestCompanionCommands,error:guestCompanionCommandsError}=await guest.client.from("homunculus_commands").select("command").eq("table_id",created.tableId);if(guestCompanionCommandsError||guestCompanionCommands.length!==2)throw guestCompanionCommandsError??new Error("Room member could not see command-only companion history.");
+  const companionPage=await fetch(`${appUrl}/companions?character=${bestiaryCharacterId}`,{headers:{Cookie:host.cookie()}});const companionHtml=await companionPage.text();if(!companionPage.ok||!companionHtml.includes("วงแหวนคำสั่ง")||!companionHtml.includes("COMMAND-ONLY")||!companionHtml.includes(created.code))throw new Error("Homunculus command console did not render.");
+  const roomWithCompanion=await fetch(`${appUrl}/dice?table=${created.tableId}`,{headers:{Cookie:guest.cookie()}});const roomWithCompanionHtml=await roomWithCompanion.text();if(!roomWithCompanion.ok||!roomWithCompanionHtml.includes("โฮมุนครุสในห้อง")||!roomWithCompanionHtml.includes(summonedCompanion.body.companion.name))throw new Error("Summoned homunculus did not render for another room member.");
 
   let chatResolve;
   let chatReject;
@@ -194,6 +204,7 @@ try {
   if (publicMessagesError || publicMessages.length !== 0) throw publicMessagesError ?? new Error("RLS exposed room chat to the public.");
   const { data: publicSaves, error: publicSavesError } = await outsider.from("room_saves").select("id").eq("table_id", created.tableId);
   if (publicSavesError || publicSaves.length !== 0) throw publicSavesError ?? new Error("RLS exposed room saves to the public.");
+  const {data:publicCompanions,error:publicCompanionsError}=await outsider.from("homunculus_companions").select("id").eq("active_table_id",created.tableId);if(publicCompanionsError||publicCompanions.length!==0)throw publicCompanionsError??new Error("RLS exposed summoned homunculi publicly.");
 
   const contentResponse = await fetch(`${appUrl}/api/content/summary`, { headers: { Cookie: host.cookie() } });
   const contentSummary = await contentResponse.json();
