@@ -74,6 +74,22 @@ try {
   const { data: ledger, error: ledgerError } = await supabase.from("wallet_transactions").select("delta_copper,balance_after").eq("character_id", characterId).order("created_at");
   if (ledgerError || ledger.length !== 3 || ledger.at(-1).balance_after !== 750) throw ledgerError ?? new Error("Wallet ledger is incomplete.");
 
+  const { data: shopItem, error: shopItemError } = await supabase.from("content_items").select("id,name_th,base_value").eq("rarity","uncommon").order("base_value",{ascending:false}).limit(1).single();
+  if (shopItemError) throw shopItemError;
+  async function shopTrade(action, quantity) {
+    const response = await fetch(`${appUrl}/api/shop/trade`, { method: "POST", headers: { "Content-Type": "application/json", Cookie: cookie }, body: JSON.stringify({ action, characterId, itemId: shopItem.id, quantity }) });
+    return { response, body: await response.json() };
+  }
+  const shopPage = await fetch(`${appUrl}/shop?character=${characterId}`, { headers: { Cookie: cookie } });
+  if (!shopPage.ok || !(await shopPage.text()).includes("ร้านค้ากริฟฟินทอง")) throw new Error("NPC shop page did not render.");
+  const purchase = await shopTrade("buy", 1);
+  if (!purchase.response.ok || purchase.body.trade?.quantity !== 1 || purchase.body.trade?.balance_copper !== 750-shopItem.base_value) throw new Error(`Shop purchase failed: ${JSON.stringify(purchase.body)}`);
+  const sale = await shopTrade("sell", 1);
+  const expectedAfterSale = 750-shopItem.base_value+Math.max(1,Math.floor(shopItem.base_value*.5));
+  if (!sale.response.ok || sale.body.trade?.quantity !== 0 || sale.body.trade?.balance_copper !== expectedAfterSale) throw new Error(`Shop sale failed: ${JSON.stringify(sale.body)}`);
+  const excessivePurchase = await shopTrade("buy", 99);
+  if (excessivePurchase.response.status !== 409) throw new Error("Shop allowed purchase beyond wallet balance.");
+
   const updateResponse = await fetch(`${appUrl}/api/characters/${characterId}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json", Cookie: cookie },
@@ -96,8 +112,10 @@ try {
   if (outsiderError || hiddenCharacters.length !== 0) throw outsiderError ?? new Error("RLS exposed a character to an unauthenticated client.");
   const { data: hiddenWallets, error: hiddenWalletError } = await outsider.from("character_wallets").select("character_id").eq("character_id", characterId);
   if (hiddenWalletError || hiddenWallets.length !== 0) throw hiddenWalletError ?? new Error("RLS exposed a wallet to an unauthenticated client.");
+  const { data: hiddenStacks, error: hiddenStacksError } = await outsider.from("character_item_stacks").select("id").eq("character_id",characterId);
+  if (hiddenStacksError || hiddenStacks.length !== 0) throw hiddenStacksError ?? new Error("RLS exposed purchased items.");
 
-  console.log(JSON.stringify({ signup: true, apiCreate: true, invalidPayloadRejected: true, racialBonus: character.dexterity === 17, lobbyRender: true, sheetRender: true, sheetUpdate: true, inventoryPersistence: true, walletStartingFunds: true, walletLedger: true, overdraftRejected: true, rlsOwnerRead: true, rlsPublicDenied: true }));
+  console.log(JSON.stringify({ signup: true, apiCreate: true, invalidPayloadRejected: true, racialBonus: character.dexterity === 17, lobbyRender: true, sheetRender: true, sheetUpdate: true, inventoryPersistence: true, walletStartingFunds: true, walletLedger: true, overdraftRejected: true, shopRender: true, shopBuy: true, shopSell: true, excessivePurchaseRejected: true, rlsOwnerRead: true, rlsPublicDenied: true }));
 } finally {
   if (characterId) await supabase.from("characters").delete().eq("id", characterId);
   if (userId) await fetch(`${url}/auth/v1/admin/users/${userId}`, { method: "DELETE", headers: { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}` } });
