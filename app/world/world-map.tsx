@@ -28,6 +28,15 @@ type Route = {
   cost_copper: number;
   food_cost: number;
 };
+type Journey = {
+  id: string;
+  destinationId: number;
+  mode: string;
+  durationHours: number;
+  elapsedHours: number;
+  encounterName: string;
+  encounterDescription: string;
+};
 const typeLabels: Record<string, string> = {
   major_city: "เมืองใหญ่",
   small_town: "หมู่บ้าน",
@@ -41,6 +50,7 @@ export function WorldMap({
   routes,
   initialLocationId,
   initialWorldHours,
+  initialJourney,
 }: {
   character: {
     id: string;
@@ -53,6 +63,7 @@ export function WorldMap({
   routes: Route[];
   initialLocationId: number;
   initialWorldHours: number;
+  initialJourney: Journey | null;
 }) {
   const points = useMemo(
     () =>
@@ -65,6 +76,7 @@ export function WorldMap({
   const [selectedId, setSelectedId] = useState(initialLocationId);
   const [worldHours, setWorldHours] = useState(initialWorldHours);
   const [travelling, setTravelling] = useState(false);
+  const [journey, setJourney] = useState<Journey | null>(initialJourney);
   const [message, setMessage] = useState("");
   const current = locations.find((location) => location.id === currentId) ?? points[0];
   const selected = locations.find((location) => location.id === selectedId) ?? current;
@@ -82,15 +94,14 @@ export function WorldMap({
     setTravelling(true);
     setMessage("");
     try {
-      const response = await fetch("/api/world/travel", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          characterId: character.id,
-          locationId: selected.id,
-          mode,
+      const [response] = await Promise.all([
+        fetch("/api/world/travel", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ characterId: character.id, locationId: selected.id, mode }),
         }),
-      });
+        new Promise((resolve) => setTimeout(resolve, 1200)),
+      ]);
       const result = await response.json();
       if (!response.ok) {
         throw new Error(
@@ -101,11 +112,14 @@ export function WorldMap({
               : "ไม่มีเส้นทางนี้จากตำแหน่งปัจจุบัน",
         );
       }
-      setCurrentId(result.travel.location_id);
       setWorldHours(result.travel.world_hours_elapsed ?? worldHours);
-      setMessage(
-        `เดินทางถึง ${result.travel.location_name} · ใช้เวลา ${result.travel.duration_hours} ชั่วโมง · เสบียง ${result.travel.food_cost}`,
-      );
+      if (result.travel.interrupted) {
+        setJourney({ id: result.travel.journey_id, destinationId: result.travel.destination_id, mode, durationHours: result.travel.duration_hours, elapsedHours: result.travel.elapsed_hours, encounterName: result.travel.encounter.name_th, encounterDescription: result.travel.encounter.description_th });
+        setMessage("การเดินทางถูกขัดจังหวะ · ต้องจัดการเหตุการณ์ก่อนไปต่อ");
+      } else {
+        setCurrentId(result.travel.location_id);
+        setMessage(`เดินทางถึง ${result.travel.location_name} · ใช้เวลา ${result.travel.duration_hours} ชั่วโมง · เสบียง ${result.travel.food_cost}`);
+      }
     } catch (caught) {
       setMessage(caught instanceof Error ? caught.message : "เดินทางไม่สำเร็จ");
     } finally {
@@ -113,8 +127,48 @@ export function WorldMap({
     }
   }
 
+  async function continueJourney() {
+    if (!journey) return;
+    setTravelling(true);
+    setMessage("");
+    try {
+      const [response] = await Promise.all([
+        fetch("/api/world/travel", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "resolve", characterId: character.id, journeyId: journey.id }) }),
+        new Promise((resolve) => setTimeout(resolve, 1000)),
+      ]);
+      const result = await response.json();
+      if (!response.ok) throw new Error("ไม่สามารถเดินทางต่อได้");
+      setCurrentId(result.travel.location_id);
+      setSelectedId(result.travel.location_id);
+      setWorldHours(result.travel.world_hours_elapsed);
+      setJourney(null);
+      setMessage(`ผ่านเหตุการณ์และเดินทางถึง ${result.travel.location_name} แล้ว`);
+    } catch (caught) {
+      setMessage(caught instanceof Error ? caught.message : "เดินทางต่อไม่สำเร็จ");
+    } finally {
+      setTravelling(false);
+    }
+  }
+
   return (
     <main className="world-shell">
+      {travelling && (
+        <div className="travel-loading" role="status">
+          <div className="travel-road"><span>♞</span></div>
+          <small>THE ROAD UNFOLDS</small>
+          <strong>กำลังเดินทาง…</strong>
+        </div>
+      )}
+      {journey && !travelling && (
+        <div className="encounter-overlay" role="dialog" aria-modal="true">
+          <section>
+            <small>RANDOM ENCOUNTER · {journey.elapsedHours}/{journey.durationHours} HOURS</small>
+            <h2>{journey.encounterName}</h2>
+            <p>{journey.encounterDescription}</p>
+            <button onClick={continueJourney}>จัดการเหตุการณ์ · เดินทางต่อ</button>
+          </section>
+        </div>
+      )}
       <header>
         <Link href={`/characters/${character.id}`}>← Character Sheet</Link>
         <span>MYTHWEAVE · AETHERRA</span>
@@ -145,6 +199,7 @@ export function WorldMap({
             className={`map-marker ${location.location_type} ${selected?.id === location.id ? "selected" : ""}`}
             style={{ left: `${location.map_x}%`, top: `${location.map_y}%` }}
             onClick={() => setSelectedId(location.id)}
+            disabled={Boolean(journey)}
             key={location.id}
           >
             <i />
