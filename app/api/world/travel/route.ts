@@ -28,8 +28,8 @@ export async function POST(request: Request) {
   }
   if (error || !data) {
     const detail = error?.message ?? "";
-    const code = detail.includes("already there") ? "already_there" : detail.includes("journey active") ? "journey_active" : detail.includes("insufficient food") ? "insufficient_food" : detail.includes("insufficient funds") ? "insufficient_funds" : detail.includes("unavailable") ? "unavailable" : detail.includes("not found") ? "not_found" : "travel_failed";
-    return NextResponse.json({ error: code }, { status: ["already_there", "journey_active", "unavailable", "insufficient_food", "insufficient_funds"].includes(code) ? 409 : code === "not_found" ? 404 : 500 });
+    const code = detail.includes("solo wilderness only") ? "solo_wilderness_only" : detail.includes("already there") ? "already_there" : detail.includes("journey active") ? "journey_active" : detail.includes("insufficient food") ? "insufficient_food" : detail.includes("insufficient funds") ? "insufficient_funds" : detail.includes("unavailable") ? "unavailable" : detail.includes("not found") ? "not_found" : "travel_failed";
+    return NextResponse.json({ error: code }, { status: ["solo_wilderness_only", "already_there", "journey_active", "unavailable", "insufficient_food", "insufficient_funds"].includes(code) ? 409 : code === "not_found" ? 404 : 500 });
   }
   return NextResponse.json({ travel: data });
 }

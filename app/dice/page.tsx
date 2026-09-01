@@ -24,6 +24,7 @@ export default async function DicePage({ searchParams }: Props) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/auth");
+  const{data:activeSolo}=await supabase.from("solo_adventures").select("character_id").eq("status","active").maybeSingle();if(activeSolo)redirect(`/solo?character=${activeSolo.character_id}`);
 
   const { table: tableId } = await searchParams;
   let table: { id: string; code: string } | null = null;

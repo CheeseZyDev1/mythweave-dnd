@@ -5,6 +5,7 @@ export async function POST(request: Request) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const {data:activeSolo}=await supabase.from("solo_adventures").select("character_id").eq("status","active").maybeSingle();if(activeSolo)return NextResponse.json({error:"solo_mode_active"},{status:409});
 
   const body = await request.json().catch(() => null);
   const action = String(body?.action ?? "");

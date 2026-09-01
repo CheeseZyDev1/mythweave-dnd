@@ -19,6 +19,7 @@ import "./codex.css";
 import "./rumor-board.css";
 import "./homunculus.css";
 import "./room-homunculus.css";
+import "./solo.css";
 
 const cinzel = Cinzel({ subsets: ["latin"], variable: "--font-cinzel" });
 const thai = Noto_Sans_Thai({ subsets: ["thai"], variable: "--font-thai" });

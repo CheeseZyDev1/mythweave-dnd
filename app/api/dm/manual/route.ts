@@ -12,6 +12,7 @@ export async function GET(request: Request) {
   if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
+  const {data:activeSolo}=await supabase.from("solo_adventures").select("id").eq("status","active").maybeSingle();if(activeSolo)return NextResponse.json({error:"solo_no_dm"},{status:409});
 
   const tableId = new URL(request.url).searchParams.get("tableId") ?? "";
   if (!UUID.test(tableId)) {
@@ -94,6 +95,7 @@ export async function POST(request: Request) {
   if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
+  const {data:activeSolo}=await supabase.from("solo_adventures").select("id").eq("status","active").maybeSingle();if(activeSolo)return NextResponse.json({error:"solo_no_dm"},{status:409});
 
   const body = await request.json().catch(() => null);
   const tableId = String(body?.tableId ?? "");

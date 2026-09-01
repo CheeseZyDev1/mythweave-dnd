@@ -117,6 +117,7 @@ export function CharacterSheet({ character, wallet, statuses, innate }: { charac
           <Link className="wallet-shop-link" href={`/bestiary?character=${character.id}`}>สมุดบันทึกอสูร →</Link>
           <Link className="wallet-shop-link" href={`/codex?character=${character.id}`}>Codex รวมความรู้ →</Link>
           <Link className="wallet-shop-link" href={`/companions?character=${character.id}`}>โฮมุนครุสคู่หู →</Link>
+          <Link className="wallet-shop-link" href={`/solo?character=${character.id}`}>Solo Expedition →</Link>
         </aside>
 
         <div className="sheet-main">
