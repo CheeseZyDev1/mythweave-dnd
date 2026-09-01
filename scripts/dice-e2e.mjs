@@ -193,10 +193,16 @@ try {
   const { data: publicSaves, error: publicSavesError } = await outsider.from("room_saves").select("id").eq("table_id", created.tableId);
   if (publicSavesError || publicSaves.length !== 0) throw publicSavesError ?? new Error("RLS exposed room saves to the public.");
 
+  const contentResponse = await fetch(`${appUrl}/api/content/summary`, { headers: { Cookie: host.cookie() } });
+  const contentSummary = await contentResponse.json();
+  if (!contentResponse.ok || contentSummary.items?.common !== 40 || contentSummary.items?.uncommon !== 25 || contentSummary.dialogue !== 32 || contentSummary.quests !== 30 || contentSummary.events !== 15) throw new Error(`Static content pool counts are incorrect: ${JSON.stringify(contentSummary)}`);
+  const contentPage = await fetch(`${appUrl}/content`, { headers: { Cookie: host.cookie() } });
+  if (!contentPage.ok || !(await contentPage.text()).includes("คลังเรื่องราว")) throw new Error("World content page did not render.");
+
   await guest.client.removeChannel(channel);
   await guest.client.removeChannel(initiativeChannel);
   await guest.client.removeChannel(chatChannel);
-  console.log(JSON.stringify({ privateTable: true, inviteJoin: true, roomRoles: true, roomChat: true, chatRealtime: true, oversizedChatRejected: true, roomSave: true, dmSaveOnly: true, roomLoadRestore: true, serverRoll: true, realtimeToGuest: true, invalidDiceRejected: true, initiativeOrder: true, initiativeRealtime: true, roundAdvance: true, memberRead: true, publicDenied: true, total: received.total }));
+  console.log(JSON.stringify({ privateTable: true, inviteJoin: true, roomRoles: true, roomChat: true, chatRealtime: true, oversizedChatRejected: true, roomSave: true, dmSaveOnly: true, roomLoadRestore: true, staticContentCounts: true, contentPage: true, serverRoll: true, realtimeToGuest: true, invalidDiceRejected: true, initiativeOrder: true, initiativeRealtime: true, roundAdvance: true, memberRead: true, publicDenied: true, total: received.total }));
 } finally {
   for (const client of browserClients) client.realtime.disconnect();
   for (const userId of users) await admin.auth.admin.deleteUser(userId);
