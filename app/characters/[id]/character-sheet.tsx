@@ -115,6 +115,7 @@ export function CharacterSheet({ character, wallet, statuses, innate }: { charac
           <Link className="wallet-shop-link" href={`/world?character=${character.id}`}>แผนที่โลก →</Link>
           <Link className="wallet-shop-link" href={`/lore/races/${character.race}?character=${character.id}`}>ตำนานเผ่าของฉัน →</Link>
           <Link className="wallet-shop-link" href={`/bestiary?character=${character.id}`}>สมุดบันทึกอสูร →</Link>
+          <Link className="wallet-shop-link" href={`/codex?character=${character.id}`}>Codex รวมความรู้ →</Link>
         </aside>
 
         <div className="sheet-main">
