@@ -104,6 +104,14 @@ try {
   const [{data:rewardedCharacter},{data:rewardedWallet}]=await Promise.all([supabase.from("characters").select("experience").eq("id",characterId).single(),supabase.from("character_wallets").select("balance_copper").eq("character_id",characterId).single()]);
   if(rewardedCharacter.experience!==questTemplate.reward_template.xp||rewardedWallet.balance_copper!==expectedAfterSale+questTemplate.reward_template.gold*100)throw new Error("Quest rewards were not applied correctly.");
 
+  const {data:statusTemplate,error:statusTemplateError}=await supabase.from("status_effect_templates").select("id,default_duration,max_stacks").eq("slug","poisoned").single();if(statusTemplateError)throw statusTemplateError;
+  async function statusAction(action,payload={}){const response=await fetch(`${appUrl}/api/status-effects`,{method:"POST",headers:{"Content-Type":"application/json",Cookie:cookie},body:JSON.stringify({action,characterId,...payload})});return{response,body:await response.json()};}
+  const firstStatus=await statusAction("apply",{templateId:statusTemplate.id,source:"E2E"});const stackedStatus=await statusAction("apply",{templateId:statusTemplate.id,source:"E2E"});
+  if(firstStatus.response.status!==201||stackedStatus.body.effect?.stacks!==2||stackedStatus.body.effect?.duration_remaining!==statusTemplate.default_duration)throw new Error("Status stacking failed.");
+  const tickedStatus=await statusAction("tick");if(!tickedStatus.response.ok||tickedStatus.body.effects?.[0]?.duration_remaining!==statusTemplate.default_duration-1)throw new Error("Status duration did not tick down.");
+  const removedStatus=await statusAction("remove",{effectId:stackedStatus.body.effect.id});if(!removedStatus.response.ok)throw new Error("Status removal failed.");
+  const {data:remainingStatuses}=await supabase.from("character_status_effects").select("id").eq("character_id",characterId);if(remainingStatuses.length!==0)throw new Error("Removed status remained active.");
+
   const updateResponse = await fetch(`${appUrl}/api/characters/${characterId}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json", Cookie: cookie },
@@ -129,8 +137,9 @@ try {
   const { data: hiddenStacks, error: hiddenStacksError } = await outsider.from("character_item_stacks").select("id").eq("character_id",characterId);
   if (hiddenStacksError || hiddenStacks.length !== 0) throw hiddenStacksError ?? new Error("RLS exposed purchased items.");
   const {data:hiddenQuests,error:hiddenQuestsError}=await outsider.from("character_quests").select("id").eq("character_id",characterId);if(hiddenQuestsError||hiddenQuests.length!==0)throw hiddenQuestsError??new Error("RLS exposed quest log.");
+  const {data:hiddenStatuses,error:hiddenStatusesError}=await outsider.from("character_status_effects").select("id").eq("character_id",characterId);if(hiddenStatusesError||hiddenStatuses.length!==0)throw hiddenStatusesError??new Error("RLS exposed status effects.");
 
-  console.log(JSON.stringify({ signup: true, apiCreate: true, invalidPayloadRejected: true, racialBonus: character.dexterity === 17, lobbyRender: true, sheetRender: true, sheetUpdate: true, inventoryPersistence: true, walletStartingFunds: true, walletLedger: true, overdraftRejected: true, shopRender: true, shopBuy: true, shopSell: true, excessivePurchaseRejected: true, questLogRender:true,questAccept:true,questComplete:true,questRewardOnce:true, rlsOwnerRead: true, rlsPublicDenied: true }));
+  console.log(JSON.stringify({ signup: true, apiCreate: true, invalidPayloadRejected: true, racialBonus: character.dexterity === 17, lobbyRender: true, sheetRender: true, sheetUpdate: true, inventoryPersistence: true, walletStartingFunds: true, walletLedger: true, overdraftRejected: true, shopRender: true, shopBuy: true, shopSell: true, excessivePurchaseRejected: true, questLogRender:true,questAccept:true,questComplete:true,questRewardOnce:true,statusApply:true,statusStacks:true,statusDuration:true,statusRemove:true, rlsOwnerRead: true, rlsPublicDenied: true }));
 } finally {
   if (characterId) await supabase.from("characters").delete().eq("id", characterId);
   if (userId) await fetch(`${url}/auth/v1/admin/users/${userId}`, { method: "DELETE", headers: { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}` } });

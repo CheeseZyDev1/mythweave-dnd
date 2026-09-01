@@ -8,6 +8,7 @@ import type { InventoryItem } from "../../../lib/characters/sheet";
 import { CharacterAvatar } from "../character-avatar";
 import type { WalletTransaction } from "../../../lib/wallet/types";
 import { WalletPanel } from "./wallet-panel";
+import { StatusPanel } from "./status-panel";
 
 type Character = {
   id: string;
@@ -36,7 +37,7 @@ function signed(value: number) {
   return value >= 0 ? `+${value}` : String(value);
 }
 
-export function CharacterSheet({ character, wallet }: { character: Character; wallet: { balance: number; transactions: WalletTransaction[] } }) {
+export function CharacterSheet({ character, wallet, statuses }: { character: Character; wallet: { balance: number; transactions: WalletTransaction[] }; statuses: { templates: Array<{id:number;name_th:string;effect_type:string;description_th:string;default_duration:number;max_stacks:number}>; effects: Array<{id:string;template_id:number;name_th:string;effect_type:string;description_th:string;duration_remaining:number;stacks:number;source:string}> } }) {
   const [stats, setStats] = useState(character.stats);
   const [hpCurrent, setHpCurrent] = useState(character.hpCurrent);
   const [hpMax, setHpMax] = useState(character.hpMax);
@@ -126,6 +127,7 @@ export function CharacterSheet({ character, wallet }: { character: Character; wa
             </div> : <div className="inventory-empty"><span>◇</span><p>กระเป๋ายังว่างเปล่า</p><button onClick={addItem}>เพิ่มสิ่งของชิ้นแรก</button></div>}
           </section>
           <WalletPanel characterId={character.id} initialBalance={wallet.balance} initialTransactions={wallet.transactions} />
+          <StatusPanel characterId={character.id} templates={statuses.templates} initialEffects={statuses.effects} />
           <div className={`sheet-save-note ${status}`}>{message || "การเปลี่ยนแปลงจะยังไม่ถูกส่งจนกดบันทึก"}</div>
         </div>
       </section>
