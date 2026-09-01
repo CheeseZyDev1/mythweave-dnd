@@ -10,6 +10,11 @@
 - สมัครสมาชิก/เข้าสู่ระบบด้วย Supabase Auth
 - Character Forge: เผ่า คลาส point-buy stats และรูปลักษณ์
 - Character Sheet: HP, ability scores, derived stats และ inventory
+- ห้องส่วนตัวด้วยรหัส พร้อม role Player / DM / Spectator
+- ทอยเต๋า, Initiative, แชต, NPC dialogue และคำบรรยาย DM แบบ real-time
+- Save/load ห้อง 3 slots พร้อม Quest, Wallet, Shop และ Status Effects
+- Manual AI DM Console: สร้าง context ล่าสุดและเผยแพร่คำตอบ โดยไม่เสียค่า API
+- Static content เริ่มต้น: item 65, dialogue 32, quest 30 และ event 15
 - Row Level Security: ผู้เล่นอ่านและแก้ไขได้เฉพาะตัวละครของตนเอง
 - Deploy อัตโนมัติจาก GitHub ไป Vercel
 
@@ -41,4 +46,4 @@ npx supabase db push --linked
 
 ## ลำดับถัดไป
 
-ทำตาม Phase 1 ทีละรายการ: Dice Roller real-time → Initiative Tracker → Room code/roles → Chat → Save/load room state จากนั้นจึงเริ่มระบบโลกตาม content scope
+Phase 0–2 เสร็จแล้ว ลำดับถัดไปคือ Phase 3: ต่อราคา → NPC/Guild affinity → ทำอาหาร/ปรุงยา → procedural item และ monster

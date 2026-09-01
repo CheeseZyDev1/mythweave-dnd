@@ -213,11 +213,52 @@ try {
   const {data:publicNpc,error:publicNpcError}=await outsider.from("npc_dialogue_history").select("id").eq("table_id",created.tableId);
   if(publicNpcError||publicNpc.length!==0)throw publicNpcError??new Error("RLS exposed NPC dialogue.");
 
+  const promptResponse = await fetch(`${appUrl}/api/dm/manual?tableId=${created.tableId}`, { headers: { Cookie: host.cookie() } });
+  const promptBody = await promptResponse.json();
+  if (!promptResponse.ok || !promptBody.prompt?.includes("Gather at the old gate.") || !promptBody.prompt.includes("Elder Elrin") || !promptBody.prompt.includes("ถึงตา Aria")) throw new Error(`Manual DM context was incomplete: ${promptResponse.status} ${JSON.stringify(promptBody)}`);
+
+  let dmResolve;
+  let dmReject;
+  const dmEvent = new Promise((resolve, reject) => { dmResolve = resolve; dmReject = reject; });
+  const dmChannel = guest.client.channel(`dm-e2e-${suffix}`).on("postgres_changes", {
+    event: "INSERT", schema: "public", table: "dm_narrations", filter: `table_id=eq.${created.tableId}`,
+  }, (payload) => dmResolve(payload.new));
+  await new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("Manual DM subscription timed out.")), 10000);
+    dmChannel.subscribe((status) => {
+      if (status === "SUBSCRIBED") { clearTimeout(timer); resolve(); }
+      if (status === "CHANNEL_ERROR") { clearTimeout(timer); reject(new Error("Manual DM channel error.")); }
+    });
+  });
+  const dmTimer = setTimeout(() => dmReject(new Error("Guest did not receive DM narration.")), 10000);
+  const narration = "ประตูศิลาเปิดออกใต้แสงจันทร์สีม่วง ทางเลือกทั้งสามรออยู่เบื้องหน้า";
+  const dmResponse = await fetch(`${appUrl}/api/dm/manual`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Cookie: host.cookie() },
+    body: JSON.stringify({ tableId: created.tableId, narration }),
+  });
+  const dmBody = await dmResponse.json();
+  if (dmResponse.status !== 201 || dmBody.narration?.narration !== narration) throw new Error(`Manual DM publish failed: ${dmResponse.status} ${JSON.stringify(dmBody)}`);
+  const receivedDm = await dmEvent;
+  clearTimeout(dmTimer);
+  if (receivedDm.id !== dmBody.narration.id || receivedDm.narration !== narration) throw new Error("Realtime DM narration did not match.");
+  const spectatorDmResponse = await fetch(`${appUrl}/api/dm/manual`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Cookie: guest.cookie() },
+    body: JSON.stringify({ tableId: created.tableId, narration: "Spectator must not publish." }),
+  });
+  if (spectatorDmResponse.status !== 403) throw new Error("Spectator was allowed to publish DM narration.");
+  const spectatorPromptResponse = await fetch(`${appUrl}/api/dm/manual?tableId=${created.tableId}`, { headers: { Cookie: guest.cookie() } });
+  if (spectatorPromptResponse.status !== 403) throw new Error("Spectator was allowed to generate DM context.");
+  const { data: publicNarrations, error: publicNarrationsError } = await outsider.from("dm_narrations").select("id").eq("table_id", created.tableId);
+  if (publicNarrationsError || publicNarrations.length !== 0) throw publicNarrationsError ?? new Error("RLS exposed DM narrations.");
+
   await guest.client.removeChannel(channel);
   await guest.client.removeChannel(initiativeChannel);
   await guest.client.removeChannel(chatChannel);
   await guest.client.removeChannel(npcChannel);
-  console.log(JSON.stringify({ privateTable: true, inviteJoin: true, roomRoles: true, roomChat: true, chatRealtime: true, oversizedChatRejected: true, roomSave: true, dmSaveOnly: true, roomLoadRestore: true, staticContentCounts: true, contentPage: true, npcWeightedDialogue: true, npcRealtime: true, serverRoll: true, realtimeToGuest: true, invalidDiceRejected: true, initiativeOrder: true, initiativeRealtime: true, roundAdvance: true, memberRead: true, publicDenied: true, total: received.total }));
+  await guest.client.removeChannel(dmChannel);
+  console.log(JSON.stringify({ privateTable: true, inviteJoin: true, roomRoles: true, roomChat: true, chatRealtime: true, oversizedChatRejected: true, roomSave: true, dmSaveOnly: true, roomLoadRestore: true, staticContentCounts: true, contentPage: true, npcWeightedDialogue: true, npcRealtime: true, manualDmContext: true, manualDmPublish: true, dmRealtime: true, spectatorDmDenied: true, serverRoll: true, realtimeToGuest: true, invalidDiceRejected: true, initiativeOrder: true, initiativeRealtime: true, roundAdvance: true, memberRead: true, publicDenied: true, total: received.total }));
 } finally {
   for (const client of browserClients) client.realtime.disconnect();
   for (const userId of users) await admin.auth.admin.deleteUser(userId);

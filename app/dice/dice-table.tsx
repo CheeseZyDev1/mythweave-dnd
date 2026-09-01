@@ -16,6 +16,8 @@ import type { RoomSave } from "../../lib/room-saves/types";
 import { RoomSavePanel } from "./room-save-panel";
 import type { NpcDialogue } from "../../lib/npc/types";
 import { NpcDialoguePanel } from "./npc-dialogue";
+import type { DmNarration } from "../../lib/dm/types";
+import { ManualDmConsole } from "./manual-dm-console";
 
 type TableInfo = { id: string; code: string };
 type Member = { user_id: string; display_name: string; role: string };
@@ -55,6 +57,7 @@ export function DiceTable({
   initialMessages,
   initialSaves,
   initialNpcHistory,
+  initialNarrations,
 }: {
   initialTable: TableInfo | null;
   initialRolls: DiceRoll[];
@@ -66,6 +69,7 @@ export function DiceTable({
   initialMessages: RoomMessage[];
   initialSaves: RoomSave[];
   initialNpcHistory: NpcDialogue[];
+  initialNarrations: DmNarration[];
 }) {
   const router = useRouter();
   const [table] = useState(initialTable);
@@ -403,7 +407,34 @@ export function DiceTable({
             isDm={ownMember?.role === "dm"}
             initialSaves={initialSaves}
           />
-          <NpcDialoguePanel tableId={table.id} initialHistory={initialNpcHistory} />
+          <NpcDialoguePanel
+            tableId={table.id}
+            initialHistory={initialNpcHistory}
+          />
+          <ManualDmConsole
+            tableId={table.id}
+            isDm={ownMember?.role === "dm"}
+            members={members}
+            rollSummary={rolls
+              .slice(-5)
+              .map(
+                (roll) =>
+                  `${roll.roller_name}: ${roll.dice_count}d${roll.dice_sides} = ${roll.total}`,
+              )}
+            turnSummary={
+              initialInitiativeEntries.find(
+                (entry) =>
+                  entry.id === initialInitiativeTracker?.current_entry_id,
+              )?.name ?? ""
+            }
+            chatSummary={initialMessages
+              .slice(-5)
+              .map((item) => `${item.sender_name}: ${item.content}`)}
+            npcSummary={initialNpcHistory
+              .slice(-3)
+              .map((item) => `${item.npc_name}: ${item.text_th}`)}
+            initialNarrations={initialNarrations}
+          />
         </div>
       </section>
     </main>

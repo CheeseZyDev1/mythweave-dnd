@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Cinzel, Noto_Sans_Thai } from "next/font/google";
 import "./tailwind.css";
 import "./globals.css";
+import "./dm-console.css";
 
 const cinzel = Cinzel({ subsets: ["latin"], variable: "--font-cinzel" });
 const thai = Noto_Sans_Thai({ subsets: ["thai"], variable: "--font-thai" });
