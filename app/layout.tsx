@@ -11,6 +11,7 @@ import "./brewing.css";
 import "./forge.css";
 import "./monster-forge.css";
 import "./world.css";
+import "./fast-travel.css";
 
 const cinzel = Cinzel({ subsets: ["latin"], variable: "--font-cinzel" });
 const thai = Noto_Sans_Thai({ subsets: ["thai"], variable: "--font-thai" });
