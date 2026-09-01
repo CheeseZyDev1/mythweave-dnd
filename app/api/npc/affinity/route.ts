@@ -26,12 +26,14 @@ export async function POST(request: Request) {
   if (error || !data) {
     const code = error?.message.includes("cooldown")
       ? "cooldown"
+      : error?.message.includes("npc unavailable")
+        ? "npc_unavailable"
       : error?.message.includes("insufficient funds")
         ? "insufficient_funds"
         : error?.message.includes("not found")
           ? "not_found"
           : "interaction_failed";
-    return NextResponse.json({ error: code }, { status: code === "cooldown" || code === "insufficient_funds" ? 409 : code === "not_found" ? 404 : 500 });
+    return NextResponse.json({ error: code }, { status: code === "cooldown" || code === "npc_unavailable" || code === "insufficient_funds" ? 409 : code === "not_found" ? 404 : 500 });
   }
   return NextResponse.json({ affinity: data }, { status: 201 });
 }

@@ -14,12 +14,14 @@ export default async function RelationshipsPage({ searchParams }: Props) {
   if (!user) redirect("/auth");
   const { character: characterId } = await searchParams;
   if (!characterId) redirect("/lobby");
-  const [{ data: character }, { data: profiles }, { data: affinities }] =
+  const [{ data: character }, { data: profiles }, { data: affinities }, { data: schedules }, { data: position }] =
     await Promise.all([
       supabase.from("characters").select("id,name").eq("id", characterId).maybeSingle(),
       supabase.from("npc_profiles").select("*").order("id"),
       supabase.from("character_npc_affinity").select("id,npc_id,score,interactions,last_interaction_at").eq("character_id", characterId),
+      supabase.from("npc_schedules").select("npc_id,period,start_hour,end_hour,location_th,activity_th,available_for_interaction").order("npc_id"),
+      supabase.rpc("ensure_character_world_position", { target_character_id: characterId }),
     ]);
   if (!character) notFound();
-  return <RelationshipsClient character={character} profiles={profiles ?? []} initialAffinities={affinities ?? []} />;
+  return <RelationshipsClient character={character} profiles={profiles ?? []} schedules={schedules ?? []} worldHours={position?.world_hours_elapsed ?? 0} initialAffinities={affinities ?? []} />;
 }
