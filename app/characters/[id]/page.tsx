@@ -21,11 +21,12 @@ export default async function CharacterSheetPage({ params }: Props) {
     .eq("id", id)
     .maybeSingle();
   if (!character) notFound();
-  const [{ data: wallet }, { data: transactions }, {data:statusTemplates},{data:statusEffects}] = await Promise.all([
+  const [{ data: wallet }, { data: transactions }, {data:statusTemplates},{data:statusEffects},{data:innateAssignment}] = await Promise.all([
     supabase.from("character_wallets").select("balance_copper").eq("character_id",id).maybeSingle(),
     supabase.from("wallet_transactions").select("*").eq("character_id",id).order("created_at",{ascending:false}).limit(20),
     supabase.from("status_effect_templates").select("id,name_th,effect_type,description_th,default_duration,max_stacks").order("effect_type").order("id"),
     supabase.from("character_status_effects").select("id,template_id,name_th,effect_type,description_th,duration_remaining,stacks,source").eq("character_id",id).order("applied_at"),
+    supabase.from("character_innate_abilities").select("assigned_at,innate_abilities(name_th,description_th,activation,effect_key,effect_value,usage_rule_th)").eq("character_id",id).maybeSingle(),
   ]);
 
   const stats: Stats = {
@@ -37,7 +38,8 @@ export default async function CharacterSheetPage({ params }: Props) {
     charisma: character.charisma,
   };
 
-  return <CharacterSheet statuses={{templates:statusTemplates??[],effects:statusEffects??[]}} wallet={{balance:wallet?.balance_copper??0,transactions:(transactions??[]) as WalletTransaction[]}} character={{
+  const innate = innateAssignment?.innate_abilities as unknown as {name_th:string;description_th:string;activation:string;effect_key:string;effect_value:number;usage_rule_th:string}|null;
+  return <CharacterSheet innate={innate} statuses={{templates:statusTemplates??[],effects:statusEffects??[]}} wallet={{balance:wallet?.balance_copper??0,transactions:(transactions??[]) as WalletTransaction[]}} character={{
     id: character.id,
     name: character.name,
     race: character.race,

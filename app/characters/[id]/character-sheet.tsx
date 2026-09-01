@@ -37,7 +37,7 @@ function signed(value: number) {
   return value >= 0 ? `+${value}` : String(value);
 }
 
-export function CharacterSheet({ character, wallet, statuses }: { character: Character; wallet: { balance: number; transactions: WalletTransaction[] }; statuses: { templates: Array<{id:number;name_th:string;effect_type:string;description_th:string;default_duration:number;max_stacks:number}>; effects: Array<{id:string;template_id:number;name_th:string;effect_type:string;description_th:string;duration_remaining:number;stacks:number;source:string}> } }) {
+export function CharacterSheet({ character, wallet, statuses, innate }: { character: Character; innate: {name_th:string;description_th:string;activation:string;effect_key:string;effect_value:number;usage_rule_th:string}|null; wallet: { balance: number; transactions: WalletTransaction[] }; statuses: { templates: Array<{id:number;name_th:string;effect_type:string;description_th:string;default_duration:number;max_stacks:number}>; effects: Array<{id:string;template_id:number;name_th:string;effect_type:string;description_th:string;duration_remaining:number;stacks:number;source:string}> } }) {
   const [stats, setStats] = useState(character.stats);
   const [hpCurrent, setHpCurrent] = useState(character.hpCurrent);
   const [hpMax, setHpMax] = useState(character.hpMax);
@@ -106,6 +106,7 @@ export function CharacterSheet({ character, wallet, statuses }: { character: Cha
             <div><strong>{passivePerception}</strong><span>Passive WIS</span></div>
           </div>
           <p className="sheet-updated">แก้ไขล่าสุด {new Date(character.updatedAt).toLocaleString("th-TH")}</p>
+          {innate && <section className="innate-card"><small>INNATE GIFT · {innate.activation}</small><h3>{innate.name_th}</h3><p>{innate.description_th}</p><b>{innate.usage_rule_th}</b></section>}
           <Link className="wallet-shop-link" href={`/relationships?character=${character.id}`}>สายสัมพันธ์ NPC →</Link>
           <Link className="wallet-shop-link" href={`/guilds?character=${character.id}`}>ชื่อเสียงกิลด์ →</Link>
           <Link className="wallet-shop-link" href={`/crafting/cooking?character=${character.id}`}>ครัวกองไฟ →</Link>

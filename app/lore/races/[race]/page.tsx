@@ -17,6 +17,7 @@ export default async function RaceLoreDetail({ params, searchParams }: { params:
   if (!catalog) notFound();
   const { data: lore } = await supabase.from("race_lore").select("*,world_locations(name_th,name_en,description_th,scene_asset)").eq("race_id", race).maybeSingle();
   if (!lore) notFound();
+  const { data: abilityPool } = await supabase.from("innate_abilities").select("slug,name_th,description_th,activation,usage_rule_th").eq("race_id",race).order("id");
   const location = lore.world_locations as unknown as { name_th: string; name_en: string; description_th: string; scene_asset: string | null };
   return <main className="race-chronicle" style={{ "--race-accent": lore.accent_color, "--race-scene": `url('${location.scene_asset ?? sceneByRace[race]}')` } as React.CSSProperties}>
     <header><Link href={`/lore/races${character ? `?character=${character}` : ""}`}>← สารบัญเผ่า</Link><span>MYTHWEAVE · RACE CHRONICLE</span><Link href={character ? `/characters/${character}` : "/lobby"}>{character ? "Character Sheet" : "Lobby"} →</Link></header>
@@ -27,7 +28,8 @@ export default async function RaceLoreDetail({ params, searchParams }: { params:
       <article><small>III · BELIEF</small><h3>ความเชื่อ</h3><p>{lore.beliefs_th}</p></article>
       <article><small>IV · RELATIONS</small><h3>สายสัมพันธ์ระหว่างเผ่า</h3><p>{lore.relations_th}</p></article>
       <article className="chronicle-home"><small>STARTING ZONE</small><h3>{location.name_th}</h3><b>{location.name_en}</b><p>{lore.homeland_th}</p><em>{location.description_th}</em></article>
-      <article className="chronicle-traits"><small>ANCESTRAL TRAITS</small><h3>พรจากสายเลือด</h3><div>{Object.entries(catalog.bonuses).map(([key, value]) => <span key={key}><strong>+{value}</strong>{STAT_LABELS[key as StatKey].label}</span>)}</div><p>ความสามารถพิเศษประจำเผ่าจะถูกเปิดเผยเมื่อสร้างตัวละครในขั้นถัดไป</p></article>
+      <article className="chronicle-traits"><small>ANCESTRAL TRAITS</small><h3>พรจากสายเลือด</h3><div>{Object.entries(catalog.bonuses).map(([key, value]) => <span key={key}><strong>+{value}</strong>{STAT_LABELS[key as StatKey].label}</span>)}</div><p>เมื่อสร้างตัวละคร ระบบจะสุ่มพรติดตัวหนึ่งอย่างและผูกกับตัวละครนั้นถาวร</p></article>
+      <article className="innate-pool"><small>INNATE ABILITY POOL · ONE OF FOUR</small><h3>ชะตาที่อาจตื่นขึ้น</h3>{(abilityPool??[]).map((ability)=><div key={ability.slug}><b>{ability.name_th}</b><span>{ability.activation}</span><p>{ability.description_th}</p><em>{ability.usage_rule_th}</em></div>)}</article>
     </section>
   </main>;
 }
