@@ -19,6 +19,15 @@ type Location = {
   danger_level: number;
   fast_travel: boolean;
 };
+type Route = {
+  id: number;
+  from_location_id: number;
+  to_location_id: number;
+  travel_mode: "fast_travel" | "carriage" | "griffin";
+  duration_hours: number;
+  cost_copper: number;
+  food_cost: number;
+};
 const typeLabels: Record<string, string> = {
   major_city: "เมืองใหญ่",
   small_town: "หมู่บ้าน",
@@ -29,7 +38,9 @@ const typeLabels: Record<string, string> = {
 export function WorldMap({
   character,
   locations,
+  routes,
   initialLocationId,
+  initialWorldHours,
 }: {
   character: {
     id: string;
@@ -39,7 +50,9 @@ export function WorldMap({
     appearance: Appearance;
   };
   locations: Location[];
+  routes: Route[];
   initialLocationId: number;
+  initialWorldHours: number;
 }) {
   const points = useMemo(
     () =>
@@ -50,12 +63,21 @@ export function WorldMap({
   );
   const [currentId, setCurrentId] = useState(initialLocationId);
   const [selectedId, setSelectedId] = useState(initialLocationId);
+  const [worldHours, setWorldHours] = useState(initialWorldHours);
   const [travelling, setTravelling] = useState(false);
   const [message, setMessage] = useState("");
   const current = locations.find((location) => location.id === currentId) ?? points[0];
   const selected = locations.find((location) => location.id === selectedId) ?? current;
 
-  async function fastTravel() {
+  const travelOptions = routes.filter(
+    (route) =>
+      (route.from_location_id === current?.id &&
+        route.to_location_id === selected?.id) ||
+      (route.to_location_id === current?.id &&
+        route.from_location_id === selected?.id),
+  );
+
+  async function travel(mode: Route["travel_mode"]) {
     if (!selected) return;
     setTravelling(true);
     setMessage("");
@@ -66,18 +88,24 @@ export function WorldMap({
         body: JSON.stringify({
           characterId: character.id,
           locationId: selected.id,
+          mode,
         }),
       });
       const result = await response.json();
       if (!response.ok) {
         throw new Error(
-          result.error === "unavailable"
-            ? "Fast Travel ใช้ได้เฉพาะเส้นทางระหว่างเมืองใหญ่"
-            : "เดินทางไม่สำเร็จ",
+          result.error === "insufficient_food"
+            ? "เสบียงเดินทางไม่พอ"
+            : result.error === "insufficient_funds"
+              ? "เหรียญไม่พอจ่ายค่าเดินทาง"
+              : "ไม่มีเส้นทางนี้จากตำแหน่งปัจจุบัน",
         );
       }
       setCurrentId(result.travel.location_id);
-      setMessage(`เดินทางถึง ${result.travel.location_name} แล้ว`);
+      setWorldHours(result.travel.world_hours_elapsed ?? worldHours);
+      setMessage(
+        `เดินทางถึง ${result.travel.location_name} · ใช้เวลา ${result.travel.duration_hours} ชั่วโมง · เสบียง ${result.travel.food_cost}`,
+      );
     } catch (caught) {
       setMessage(caught instanceof Error ? caught.message : "เดินทางไม่สำเร็จ");
     } finally {
@@ -105,6 +133,7 @@ export function WorldMap({
           <span>ตำแหน่งปัจจุบัน</span>
           <strong>{current?.name_th}</strong>
           <small>{current?.name_en}</small>
+          <span>เวลาโลกสะสม {worldHours} ชั่วโมง</span>
         </div>
       </section>
       {message && <p className="world-message">{message}</p>}
@@ -150,17 +179,23 @@ export function WorldMap({
             <p>{selected.description_th}</p>
             {selected.id === current?.id ? (
               <span className="location-current">คุณอยู่ที่นี่</span>
-            ) : selected.location_type === "major_city" &&
-              current?.location_type === "major_city" &&
-              selected.fast_travel &&
-              current.fast_travel ? (
-              <button
-                className="fast-travel-button"
-                onClick={fastTravel}
-                disabled={travelling}
-              >
-                {travelling ? "กำลังเปิดวงเวท…" : "Fast Travel · ทันที · ฟรี"}
-              </button>
+            ) : travelOptions.length ? (
+              <div className="travel-options">
+                {travelOptions.map((route) => (
+                  <button
+                    className={`fast-travel-button ${route.travel_mode}`}
+                    onClick={() => travel(route.travel_mode)}
+                    disabled={travelling}
+                    key={route.id}
+                  >
+                    {travelling
+                      ? "กำลังเดินทาง…"
+                      : route.travel_mode === "fast_travel"
+                        ? "Fast Travel · ทันที · ฟรี"
+                        : `${route.travel_mode === "carriage" ? "รถม้า" : "กริฟฟิน"} · ${route.duration_hours} ชม. · ${route.cost_copper} CP · เสบียง ${route.food_cost}`}
+                  </button>
+                ))}
+              </div>
             ) : (
               <span className="location-preview">
                 ดูฉากล่วงหน้า · ต้องใช้เส้นทางภาคพื้นดิน
