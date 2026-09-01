@@ -8,7 +8,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "tsc --noEmit",
-    "test:character": "node scripts/character-e2e.mjs"
+    "test:character": "node scripts/character-e2e.mjs",
+    "test:dice": "node scripts/dice-e2e.mjs"
   },
   "engines": {
     "node": "22.x"

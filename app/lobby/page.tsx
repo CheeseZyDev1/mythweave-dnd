@@ -33,7 +33,7 @@ export default async function LobbyPage() {
         <div className="lobby-next">
           <article><span>01 · READY</span><h2>สร้างตัวละคร</h2><p>เลือกเผ่า คลาส ค่าสถานะ และรูปลักษณ์เริ่มต้น</p></article>
           <article><span>02 · READY</span><h2>Character Sheet</h2><p>ดูและแก้ไข HP, stats และ inventory เบื้องต้น</p></article>
-          <article><span>03 · NEXT</span><h2>ทอยเต๋าพร้อมกัน</h2><p>ส่งผลเต๋าแบบ real-time ให้ผู้เล่นในห้องเห็นพร้อมกัน</p></article>
+          <article><span>03 · ACTIVE</span><h2>ทอยเต๋าพร้อมกัน</h2><p>ส่งผลเต๋าแบบ real-time ให้ผู้เล่นในห้องเห็นพร้อมกัน</p><Link href="/dice">เปิดโต๊ะเต๋า →</Link></article>
         </div>
       </section>
     </main>
