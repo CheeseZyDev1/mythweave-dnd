@@ -427,7 +427,7 @@ export function DiceTable({
             readOnly={readOnly}
           />
           <HomunculusRoomPanel tableId={table.id} currentUserId={currentUserId} readOnly={readOnly} monsters={initialMonsters} initialCompanions={initialCompanions} initialCommands={initialCompanionCommands}/>
-          <WorldBossPanel tableId={table.id} characterId={ownMember?.character_id??null} readOnly={readOnly} isDm={ownMember?.role==="dm"} initialBoss={initialWorldBoss} initialContributions={initialWorldBossContributions}/>
+          <WorldBossPanel tableId={table.id} currentUserId={currentUserId} characterId={ownMember?.character_id??null} readOnly={readOnly} isDm={ownMember?.role==="dm"} members={members} initialBoss={initialWorldBoss} initialContributions={initialWorldBossContributions}/>
           <RoomSavePanel
             tableId={table.id}
             isDm={ownMember?.role === "dm"}
