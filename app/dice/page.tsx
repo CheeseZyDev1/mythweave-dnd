@@ -95,7 +95,7 @@ export default async function DicePage({ searchParams }: Props) {
         supabase.from("npc_dialogue_history").select("*").eq("table_id",table.id).order("created_at",{ascending:false}).limit(20),
         supabase.from("dm_narrations").select("*").eq("table_id",table.id).order("created_at",{ascending:false}).limit(10),
         supabase.from("generated_monsters").select("*").eq("table_id",table.id).order("created_at",{ascending:false}).limit(12),
-        supabase.from("homunculus_companions").select("id,name,stance,hp_current,hp_max,active_table_id").eq("active_table_id",table.id),
+        supabase.from("homunculus_companions").select("id,user_id,character_id,name,stance,hp_current,hp_max,guard_points,active_table_id").eq("active_table_id",table.id),
         supabase.from("homunculus_commands").select("id,companion_id,command,response_th,created_at").eq("table_id",table.id).order("created_at",{ascending:false}).limit(20),
       ]);
       rolls = (rollData ?? []).reverse() as DiceRoll[];

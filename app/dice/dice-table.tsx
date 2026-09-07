@@ -423,7 +423,7 @@ export function DiceTable({
             initialMessages={initialMessages}
             readOnly={readOnly}
           />
-          <HomunculusRoomPanel tableId={table.id} initialCompanions={initialCompanions} initialCommands={initialCompanionCommands}/>
+          <HomunculusRoomPanel tableId={table.id} currentUserId={currentUserId} readOnly={readOnly} monsters={initialMonsters} initialCompanions={initialCompanions} initialCommands={initialCompanionCommands}/>
           <RoomSavePanel
             tableId={table.id}
             isDm={ownMember?.role === "dm"}
