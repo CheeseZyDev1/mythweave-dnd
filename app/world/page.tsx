@@ -16,10 +16,11 @@ export default async function WorldPage({ searchParams }: { searchParams: Promis
   if (!character) notFound();
   const { data: position, error: positionError } = await supabase.rpc("ensure_character_world_position", { target_character_id: characterId });
   if (positionError || !position) notFound();
-  const [{ data: locations }, { data: routes }, { data: journey }] = await Promise.all([
+  const [{ data: locations }, { data: routes }, { data: journey }, { data: worldEvents }] = await Promise.all([
     supabase.from("world_locations").select("*").order("id"),
     supabase.from("world_routes").select("*").order("id"),
     supabase.from("character_journeys").select("id,to_location_id,travel_mode,duration_hours,elapsed_hours,travel_encounter_templates(name_th,description_th)").eq("character_id", characterId).eq("status", "encounter").maybeSingle(),
+    supabase.from("world_control_events").select("id,action_type,title_th,description_th,location_id,expires_at").gt("expires_at",new Date().toISOString()).order("created_at",{ascending:false}).limit(12),
   ]);
   const encounter = journey?.travel_encounter_templates as unknown as { name_th: string; description_th: string } | null;
   const { data: weather } = await supabase.rpc("get_character_weather", { target_character_id: characterId });
@@ -32,6 +33,7 @@ export default async function WorldPage({ searchParams }: { searchParams: Promis
     initialWorldHours={position.world_hours_elapsed ?? 0}
     initialWeather={weather ?? { slug: "clear", name_th: "ท้องฟ้าโปร่ง", description_th: "ท้องฟ้าสงบ", symbol: "☀", travel_note_th: "เดินทางตามปกติ", intensity: 1, period_index: 0, next_change_in_hours: 6 }}
     initialVillageEvent={villageEvent}
+    initialWorldEvents={worldEvents ?? []}
     initialJourney={journey ? { id: journey.id, destinationId: journey.to_location_id, mode: journey.travel_mode, durationHours: journey.duration_hours, elapsedHours: journey.elapsed_hours, encounterName: encounter?.name_th ?? "เหตุการณ์ระหว่างทาง", encounterDescription: encounter?.description_th ?? "มีบางอย่างทำให้การเดินทางหยุดลง" } : null}
   />;
 }

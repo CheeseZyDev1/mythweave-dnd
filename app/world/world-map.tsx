@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Appearance } from "../../lib/characters/catalog";
+import { createClient } from "../../lib/supabase/client";
 import { getWorldTime } from "../../lib/world/time";
 import { CharacterAvatar } from "../characters/character-avatar";
 
@@ -40,6 +41,7 @@ type Journey = {
 };
 type Weather = { slug: string; name_th: string; description_th: string; symbol: string; travel_note_th: string; intensity: number; period_index: number; next_change_in_hours: number };
 type VillageEvent = { id: string; title_th: string; description_th: string; event_type: string; reward_copper: number; status: string; world_day: number; location_id: number };
+type WorldControlEvent = { id: string; action_type: string; title_th: string; description_th: string; location_id: number | null; expires_at: string };
 const typeLabels: Record<string, string> = {
   major_city: "เมืองใหญ่",
   small_town: "หมู่บ้าน",
@@ -55,6 +57,7 @@ export function WorldMap({
   initialWorldHours,
   initialWeather,
   initialVillageEvent,
+  initialWorldEvents,
   initialJourney,
 }: {
   character: {
@@ -70,6 +73,7 @@ export function WorldMap({
   initialWorldHours: number;
   initialWeather: Weather;
   initialVillageEvent: VillageEvent | null;
+  initialWorldEvents: WorldControlEvent[];
   initialJourney: Journey | null;
 }) {
   const points = useMemo(
@@ -87,9 +91,23 @@ export function WorldMap({
   const [message, setMessage] = useState("");
   const [weather, setWeather] = useState(initialWeather);
   const [villageEvent, setVillageEvent] = useState(initialVillageEvent);
+  const [worldEvents, setWorldEvents] = useState(initialWorldEvents);
   const worldTime = getWorldTime(worldHours);
   const current = locations.find((location) => location.id === currentId) ?? points[0];
   const selected = locations.find((location) => location.id === selectedId) ?? current;
+  const activeWorldEvent = worldEvents.find((event) => new Date(event.expires_at).getTime() > Date.now() && event.location_id === currentId) ?? worldEvents.find((event) => new Date(event.expires_at).getTime() > Date.now() && event.location_id === null);
+
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase.channel(`world-control-${character.id}`).on("postgres_changes", { event: "INSERT", schema: "public", table: "world_control_events" }, (payload) => {
+      const incoming = payload.new as WorldControlEvent;
+      setWorldEvents((existing) => [incoming, ...existing.filter((item) => item.id !== incoming.id)].slice(0, 12));
+      if (incoming.action_type === "weather") void refreshWorldContext();
+    }).subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  // The subscription is scoped to this character's mounted world view.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [character.id]);
 
   const travelOptions = routes.filter(
     (route) =>
@@ -219,6 +237,7 @@ export function WorldMap({
         </div>
       </section>
       <section className="weather-panel"><b>{weather.symbol} {weather.name_th}</b><span>{weather.description_th}</span><small>ระดับ {weather.intensity}/3 · เปลี่ยนในอีก {weather.next_change_in_hours} ชม.</small><i>{weather.travel_note_th}</i></section>
+      {activeWorldEvent && <section className={`world-control-banner ${activeWorldEvent.action_type}`}><small>GOD MODE · {activeWorldEvent.action_type.toUpperCase()}</small><b>{activeWorldEvent.title_th}</b><span>{activeWorldEvent.description_th}</span></section>}
       {villageEvent && <section className={`village-event ${villageEvent.status}`}><small>VILLAGE EVENT · DAY {villageEvent.world_day} · {villageEvent.event_type}</small><h3>{villageEvent.title_th}</h3><p>{villageEvent.description_th}</p>{villageEvent.status === "active" ? <div><button onClick={() => resolveVillageEvent("participate")}>เข้าร่วม · +{villageEvent.reward_copper} CP</button><button onClick={() => resolveVillageEvent("ignore")}>ผ่านไป</button></div> : <b>เหตุการณ์สิ้นสุดแล้ว</b>}</section>}
       {message && <p className="world-message">{message}</p>}
       <section className="interactive-map">
