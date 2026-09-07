@@ -5,6 +5,7 @@ import { DEFAULT_APPEARANCE, type Appearance, type Stats } from "../../../lib/ch
 import type { InventoryItem } from "../../../lib/characters/sheet";
 import { CharacterSheet } from "./character-sheet";
 import type { WalletTransaction } from "../../../lib/wallet/types";
+import{StaminaPanel}from"./stamina-panel";
 
 export const metadata: Metadata = { title: "Character Sheet — Mythweave" };
 
@@ -39,7 +40,8 @@ export default async function CharacterSheetPage({ params }: Props) {
   };
 
   const innate = innateAssignment?.innate_abilities as unknown as {name_th:string;description_th:string;activation:string;effect_key:string;effect_value:number;usage_rule_th:string}|null;
-  return <CharacterSheet innate={innate} statuses={{templates:statusTemplates??[],effects:statusEffects??[]}} wallet={{balance:wallet?.balance_copper??0,transactions:(transactions??[]) as WalletTransaction[]}} character={{
+  const{data:stamina}=await supabase.rpc("get_character_stamina",{target_character_id:id});
+  return <><CharacterSheet innate={innate} statuses={{templates:statusTemplates??[],effects:statusEffects??[]}} wallet={{balance:wallet?.balance_copper??0,transactions:(transactions??[]) as WalletTransaction[]}} character={{
     id: character.id,
     name: character.name,
     race: character.race,
@@ -52,5 +54,5 @@ export default async function CharacterSheetPage({ params }: Props) {
     appearance: (character.appearance as Appearance) ?? DEFAULT_APPEARANCE,
     inventory: Array.isArray(character.inventory) ? character.inventory as InventoryItem[] : [],
     updatedAt: character.updated_at,
-  }} />;
+  }} /><StaminaPanel characterId={id}initial={stamina??{enabled:false}}/></>;
 }
