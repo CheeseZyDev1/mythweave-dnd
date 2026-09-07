@@ -27,11 +27,13 @@ export default async function DicePage({ searchParams }: Props) {
   const{data:activeSolo}=await supabase.from("solo_adventures").select("character_id").eq("status","active").maybeSingle();
   let ghostMode=false;
   if(activeSolo){const{data:life}=await supabase.from("solo_life_states").select("status").eq("character_id",activeSolo.character_id).maybeSingle();ghostMode=life?.status==="dead";if(!ghostMode)redirect(`/solo?character=${activeSolo.character_id}`);}
+  const{data:ownedCharacters}=await supabase.from("characters").select("id,name").order("created_at",{ascending:false});
 
   const { table: tableId } = await searchParams;
   let table: { id: string; code: string } | null = null;
   let rolls: DiceRoll[] = [];
-  let members: { user_id: string; display_name: string; role: string }[] = [];
+  let members: { user_id: string; display_name: string; role: string;character_id:string|null }[] = [];
+  let awareness:{user_id:string;display_name:string;role:string;character_id:string|null;character_name:string|null;location_id:number|null;location_name:string|null;awareness_tier:string}[]=[];
   let initiativeEntries: InitiativeEntry[] = [];
   let initiativeTracker: InitiativeTracker | null = null;
   let messages: RoomMessage[] = [];
@@ -68,7 +70,7 @@ export default async function DicePage({ searchParams }: Props) {
           .limit(30),
         supabase
           .from("dice_table_members")
-          .select("user_id,display_name,role")
+          .select("user_id,display_name,role,character_id")
           .eq("table_id", table.id)
           .order("joined_at"),
         supabase
@@ -96,6 +98,8 @@ export default async function DicePage({ searchParams }: Props) {
       ]);
       rolls = (rollData ?? []).reverse() as DiceRoll[];
       members = memberData ?? [];
+      const ownCharacterId=members.find(member=>member.user_id===user.id)?.character_id;
+      if(ownCharacterId){const{data:awarenessData}=await supabase.rpc("get_party_awareness",{target_table_id:table.id,viewer_character_id:ownCharacterId});awareness=awarenessData??[];}
       initiativeEntries = (entryData ?? []) as InitiativeEntry[];
       initiativeTracker = trackerData as InitiativeTracker | null;
       messages = ((messageData ?? []) as RoomMessage[]).reverse();
@@ -124,6 +128,8 @@ export default async function DicePage({ searchParams }: Props) {
       initialCompanions={companions}
       initialCompanionCommands={companionCommands}
       ghostMode={ghostMode}
+      characters={ownedCharacters??[]}
+      initialAwareness={awareness}
     />
   );
 }

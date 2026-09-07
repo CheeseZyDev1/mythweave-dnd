@@ -21,9 +21,10 @@ import { ManualDmConsole } from "./manual-dm-console";
 import type { GeneratedMonster } from "../../lib/monsters/types";
 import {HomunculusRoomPanel,type RoomHomunculus,type RoomHomunculusCommand}from"./homunculus-room-panel";
 import { MonsterForge } from "./monster-forge";
+import {PartyAwareness,type AwarenessMember}from"./party-awareness";
 
 type TableInfo = { id: string; code: string };
-type Member = { user_id: string; display_name: string; role: string };
+type Member = { user_id: string; display_name: string; role: string;character_id:string|null };
 
 const tableErrors: Record<string, string> = {
   invalid_code: "รูปแบบรหัสไม่ถูกต้อง",
@@ -66,6 +67,7 @@ export function DiceTable({
   initialMonsters,
   initialCompanions,initialCompanionCommands,
   ghostMode,
+  characters,initialAwareness,
 }: {
   initialTable: TableInfo | null;
   initialRolls: DiceRoll[];
@@ -81,12 +83,14 @@ export function DiceTable({
   initialMonsters: GeneratedMonster[];
   initialCompanions:RoomHomunculus[];initialCompanionCommands:RoomHomunculusCommand[];
   ghostMode:boolean;
+  characters:{id:string;name:string}[];initialAwareness:AwarenessMember[];
 }) {
   const router = useRouter();
   const [table] = useState(initialTable);
   const [rolls, setRolls] = useState(initialRolls);
   const [code, setCode] = useState("");
   const [joinRole, setJoinRole] = useState(ghostMode?"spectator":"player");
+  const[selectedCharacterId,setSelectedCharacterId]=useState(characters[0]?.id??"");
   const [diceCount, setDiceCount] = useState(1);
   const [diceSides, setDiceSides] = useState(20);
   const [modifier, setModifier] = useState(0);
@@ -151,7 +155,7 @@ export function DiceTable({
       const response = await fetch("/api/dice/tables", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action, code, role: joinRole }),
+        body: JSON.stringify({ action, code, role: joinRole,characterId:selectedCharacterId }),
       });
       const result = await response.json();
       if (!response.ok)
@@ -231,6 +235,7 @@ export function DiceTable({
               {busy ? "กำลังเปิดห้อง…" : "สร้างห้องใหม่ · เป็น DM"}
             </button>}
             <span>หรือเข้าร่วมด้วยรหัส</span>
+            {characters.length>0&&<label className="dice-character-picker"><small>ตัวละครที่ใช้ในห้อง</small><select value={selectedCharacterId} onChange={event=>setSelectedCharacterId(event.target.value)} disabled={ghostMode}>{characters.map(character=><option value={character.id} key={character.id}>{character.name}</option>)}</select></label>}
             {ghostMode?<div className="ghost-mode-banner">GHOST · SPECTATOR ONLY</div>:<div className="dice-role-picker">
               {[
                 ["player", "Player"],
@@ -411,6 +416,7 @@ export function DiceTable({
               <p className="dice-empty">ยังไม่มีผลการทอยในโต๊ะนี้</p>
             )}
           </section>
+          {ownMember?.character_id&&<PartyAwareness tableId={table.id} viewerCharacterId={ownMember.character_id} initialMembers={initialAwareness}/>}
           <RoomChat
             tableId={table.id}
             currentUserId={currentUserId}
