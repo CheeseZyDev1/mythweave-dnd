@@ -21,7 +21,7 @@ import { ManualDmConsole } from "./manual-dm-console";
 import type { GeneratedMonster } from "../../lib/monsters/types";
 import {HomunculusRoomPanel,type RoomHomunculus,type RoomHomunculusCommand}from"./homunculus-room-panel";
 import { MonsterForge } from "./monster-forge";
-import {PartyAwareness,type AwarenessMember}from"./party-awareness";
+import {PartyAwareness,type AwarenessMember,type MessengerDispatch}from"./party-awareness";
 
 type TableInfo = { id: string; code: string };
 type Member = { user_id: string; display_name: string; role: string;character_id:string|null };
@@ -67,7 +67,7 @@ export function DiceTable({
   initialMonsters,
   initialCompanions,initialCompanionCommands,
   ghostMode,
-  characters,initialAwareness,
+  characters,initialAwareness,initialMessengerBirds,initialMessengerDispatches,
 }: {
   initialTable: TableInfo | null;
   initialRolls: DiceRoll[];
@@ -83,7 +83,7 @@ export function DiceTable({
   initialMonsters: GeneratedMonster[];
   initialCompanions:RoomHomunculus[];initialCompanionCommands:RoomHomunculusCommand[];
   ghostMode:boolean;
-  characters:{id:string;name:string}[];initialAwareness:AwarenessMember[];
+  characters:{id:string;name:string}[];initialAwareness:AwarenessMember[];initialMessengerBirds:number;initialMessengerDispatches:MessengerDispatch[];
 }) {
   const router = useRouter();
   const [table] = useState(initialTable);
@@ -416,7 +416,7 @@ export function DiceTable({
               <p className="dice-empty">ยังไม่มีผลการทอยในโต๊ะนี้</p>
             )}
           </section>
-          {ownMember?.character_id&&<PartyAwareness tableId={table.id} viewerCharacterId={ownMember.character_id} initialMembers={initialAwareness}/>}
+          {ownMember?.character_id&&<PartyAwareness tableId={table.id} viewerCharacterId={ownMember.character_id} initialMembers={initialAwareness} initialBirds={initialMessengerBirds} initialDispatches={initialMessengerDispatches} canSend={!readOnly}/>}
           <RoomChat
             tableId={table.id}
             currentUserId={currentUserId}

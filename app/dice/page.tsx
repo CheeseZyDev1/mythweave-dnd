@@ -12,6 +12,7 @@ import type { NpcDialogue } from "../../lib/npc/types";
 import type { DmNarration } from "../../lib/dm/types";
 import type { GeneratedMonster } from "../../lib/monsters/types";
 import { DiceTable } from "./dice-table";
+import type{MessengerDispatch}from"./party-awareness";
 import type { RoomHomunculus, RoomHomunculusCommand } from "./homunculus-room-panel";
 
 export const metadata: Metadata = { title: "Realtime Dice — Mythweave" };
@@ -34,6 +35,7 @@ export default async function DicePage({ searchParams }: Props) {
   let rolls: DiceRoll[] = [];
   let members: { user_id: string; display_name: string; role: string;character_id:string|null }[] = [];
   let awareness:{user_id:string;display_name:string;role:string;character_id:string|null;character_name:string|null;location_id:number|null;location_name:string|null;awareness_tier:string}[]=[];
+  let messengerBirds=0;let messengerDispatches:MessengerDispatch[]=[];
   let initiativeEntries: InitiativeEntry[] = [];
   let initiativeTracker: InitiativeTracker | null = null;
   let messages: RoomMessage[] = [];
@@ -99,7 +101,7 @@ export default async function DicePage({ searchParams }: Props) {
       rolls = (rollData ?? []).reverse() as DiceRoll[];
       members = memberData ?? [];
       const ownCharacterId=members.find(member=>member.user_id===user.id)?.character_id;
-      if(ownCharacterId){const{data:awarenessData}=await supabase.rpc("get_party_awareness",{target_table_id:table.id,viewer_character_id:ownCharacterId});awareness=awarenessData??[];}
+      if(ownCharacterId){const[{data:awarenessData},{data:birdStack},{data:dispatchData}]=await Promise.all([supabase.rpc("get_party_awareness",{target_table_id:table.id,viewer_character_id:ownCharacterId}),supabase.from("character_item_stacks").select("quantity,content_items!inner(slug)").eq("character_id",ownCharacterId).eq("content_items.slug","messenger-raven").maybeSingle(),supabase.from("messenger_dispatches").select("*").eq("table_id",table.id).order("created_at",{ascending:false}).limit(12)]);awareness=awarenessData??[];messengerBirds=birdStack?.quantity??0;messengerDispatches=(dispatchData??[])as MessengerDispatch[];}
       initiativeEntries = (entryData ?? []) as InitiativeEntry[];
       initiativeTracker = trackerData as InitiativeTracker | null;
       messages = ((messageData ?? []) as RoomMessage[]).reverse();
@@ -130,6 +132,8 @@ export default async function DicePage({ searchParams }: Props) {
       ghostMode={ghostMode}
       characters={ownedCharacters??[]}
       initialAwareness={awareness}
+      initialMessengerBirds={messengerBirds}
+      initialMessengerDispatches={messengerDispatches}
     />
   );
 }
