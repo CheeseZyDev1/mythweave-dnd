@@ -1,0 +1,2 @@
+export type TimingGrade="perfect"|"good"|"weak"|"miss";
+export type TimedCombatAction={id:string;table_id:string;monster_id:string;actor_user_id:string;character_id:string;actor_name:string;character_name:string;damage_type:string;base_damage:number;status:"pending"|"resolved";opens_at:string;target_at:string;closes_at:string;resolved_at:string|null;timing_offset_ms:number|null;grade:TimingGrade|null;applied_damage:number|null;weakness_effective:boolean|null;monster_hp_before:number|null;monster_hp_after:number|null;created_at:string};

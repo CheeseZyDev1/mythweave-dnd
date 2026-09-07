@@ -438,6 +438,9 @@ export function DiceTable({
             tableId={table.id}
             isDm={ownMember?.role === "dm"}
             initialMonsters={initialMonsters}
+            currentUserId={currentUserId}
+            characterId={ownMember?.character_id??null}
+            canAttack={!readOnly}
           />
           <ManualDmConsole
             tableId={table.id}
