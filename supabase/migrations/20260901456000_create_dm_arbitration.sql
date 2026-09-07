@@ -1,0 +1,31 @@
+create table public.site_admins(user_id uuid primary key references auth.users(id)on delete cascade,created_at timestamptz not null default now());
+alter table public.site_admins enable row level security;create policy "Admins can verify their own access"on public.site_admins for select to authenticated using(user_id=auth.uid());
+insert into public.site_admins(user_id)select id from auth.users where email not like'mythweave-%@example.com'order by created_at limit 1 on conflict do nothing;
+create or replace function public.is_site_admin()returns boolean language sql stable security definer set search_path=''as $$select exists(select 1 from public.site_admins where user_id=(select auth.uid()))$$;
+
+create table public.dm_arbitration_cases(
+  id uuid primary key default gen_random_uuid(),boss_id uuid not null references public.world_bosses(id)on delete cascade,category text not null check(category in('boss_anomaly','damage_dispute','party_wipe','other')),status text not null default'open'check(status in('open','ready','upheld','dismissed','compensated')),report_count integer not null default 0,decision_notes text,reviewed_by uuid references auth.users(id),reviewed_at timestamptz,created_at timestamptz not null default now(),updated_at timestamptz not null default now()
+);
+create table public.dm_incident_reports(
+  id uuid primary key default gen_random_uuid(),case_id uuid not null references public.dm_arbitration_cases(id)on delete cascade,table_id uuid not null references public.dice_tables(id)on delete cascade,reporter_user_id uuid not null references auth.users(id)on delete cascade,summary text not null check(char_length(summary)between 10 and 500),evidence jsonb not null default'{}',created_at timestamptz not null default now(),unique(case_id,reporter_user_id)
+);
+create index dm_arbitration_status_idx on public.dm_arbitration_cases(status,created_at desc);create index dm_incident_case_idx on public.dm_incident_reports(case_id,created_at);
+alter table public.dm_arbitration_cases enable row level security;alter table public.dm_incident_reports enable row level security;
+create policy "Reporters and admins can view arbitration cases"on public.dm_arbitration_cases for select to authenticated using(public.is_site_admin()or exists(select 1 from public.dm_incident_reports report where report.case_id=id and report.reporter_user_id=auth.uid()));
+create policy "Reporters and admins can view incident reports"on public.dm_incident_reports for select to authenticated using(public.is_site_admin()or reporter_user_id=auth.uid());
+
+create or replace function public.submit_dm_incident(target_boss_id uuid,target_table_id uuid,target_category text,target_summary text,target_evidence jsonb default'{}')returns jsonb language plpgsql security definer set search_path=''as $$
+declare v_case public.dm_arbitration_cases%rowtype;v_report public.dm_incident_reports%rowtype;v_summary text;v_count integer;
+begin
+  if target_category not in('boss_anomaly','damage_dispute','party_wipe','other')then raise exception'invalid category';end if;v_summary:=regexp_replace(trim(coalesce(target_summary,'')),'\s+',' ','g');if char_length(v_summary)<10 or char_length(v_summary)>500 then raise exception'invalid summary';end if;
+  if not exists(select 1 from public.dice_table_members where table_id=target_table_id and user_id=auth.uid()and role='dm')then raise exception'dm required';end if;if not exists(select 1 from public.world_bosses where id=target_boss_id)then raise exception'boss not found';end if;
+  select*into v_case from public.dm_arbitration_cases where boss_id=target_boss_id and category=target_category and status in('open','ready')and created_at>now()-interval'24 hours'order by created_at limit 1 for update;
+  if v_case.id is null then insert into public.dm_arbitration_cases(boss_id,category)values(target_boss_id,target_category)returning*into v_case;end if;
+  if exists(select 1 from public.dm_incident_reports where case_id=v_case.id and reporter_user_id=auth.uid())then raise exception'already reported';end if;
+  insert into public.dm_incident_reports(case_id,table_id,reporter_user_id,summary,evidence)values(v_case.id,target_table_id,auth.uid(),v_summary,coalesce(target_evidence,'{}'))returning*into v_report;
+  select count(distinct reporter_user_id)into v_count from public.dm_incident_reports where case_id=v_case.id;update public.dm_arbitration_cases set report_count=v_count,status=case when v_count>=2 then'ready'else'open'end,updated_at=now()where id=v_case.id returning*into v_case;
+  return jsonb_build_object('case',to_jsonb(v_case),'report',to_jsonb(v_report));
+end;$$;
+create or replace function public.review_dm_arbitration(target_case_id uuid,target_decision text,target_notes text)returns public.dm_arbitration_cases language plpgsql security definer set search_path=''as $$declare v_case public.dm_arbitration_cases%rowtype;v_notes text;begin if not public.is_site_admin()then raise exception'admin required';end if;if target_decision not in('upheld','dismissed','compensated')then raise exception'invalid decision';end if;v_notes:=regexp_replace(trim(coalesce(target_notes,'')),'\s+',' ','g');if char_length(v_notes)<5 or char_length(v_notes)>500 then raise exception'invalid notes';end if;select*into v_case from public.dm_arbitration_cases where id=target_case_id for update;if v_case.id is null then raise exception'case not found';end if;if v_case.status<>'ready'then raise exception'case not ready';end if;update public.dm_arbitration_cases set status=target_decision,decision_notes=v_notes,reviewed_by=auth.uid(),reviewed_at=now(),updated_at=now()where id=v_case.id returning*into v_case;return v_case;end;$$;
+revoke all on function public.is_site_admin()from public;revoke all on function public.submit_dm_incident(uuid,uuid,text,text,jsonb)from public;revoke all on function public.review_dm_arbitration(uuid,text,text)from public;grant execute on function public.is_site_admin()to authenticated;grant execute on function public.submit_dm_incident(uuid,uuid,text,text,jsonb)to authenticated;grant execute on function public.review_dm_arbitration(uuid,text,text)to authenticated;
+alter publication supabase_realtime add table public.dm_arbitration_cases;
