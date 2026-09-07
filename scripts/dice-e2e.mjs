@@ -89,6 +89,9 @@ try {
       if (status === "CHANNEL_ERROR") { clearTimeout(timer); reject(new Error("Chat channel error.")); }
     });
   });
+  // The first authenticated channel on a fresh Realtime socket can report
+  // SUBSCRIBED just before its database-change binding is fully settled.
+  await new Promise((resolve) => setTimeout(resolve, 500));
   const chatTimer = setTimeout(() => chatReject(new Error("Guest did not receive room chat.")), 10000);
   const chatResponse = await fetch(`${appUrl}/api/chat`, {
     method: "POST",

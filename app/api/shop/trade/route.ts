@@ -31,7 +31,9 @@ export async function POST(request: Request) {
     target_quantity: quantity,
   });
   if (error || !data) {
-    const code = error?.message.includes("insufficient funds")
+    const code = error?.message.includes("soulbound item")
+      ? "soulbound_item"
+      : error?.message.includes("insufficient funds")
       ? "insufficient_funds"
       : error?.message.includes("insufficient items")
         ? "insufficient_items"
@@ -41,7 +43,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { error: code },
       {
-        status: code.startsWith("insufficient")
+        status: code.startsWith("insufficient") || code === "soulbound_item"
           ? 409
           : code === "not_found"
             ? 404
