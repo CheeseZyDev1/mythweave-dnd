@@ -22,6 +22,7 @@ import type { GeneratedMonster } from "../../lib/monsters/types";
 import {HomunculusRoomPanel,type RoomHomunculus,type RoomHomunculusCommand}from"./homunculus-room-panel";
 import { MonsterForge } from "./monster-forge";
 import {PartyAwareness,type AwarenessMember,type MessengerDispatch}from"./party-awareness";
+import{WorldBossPanel}from"./world-boss-panel";import type{WorldBoss,WorldBossContribution}from"../../lib/combat/world-boss";
 
 type TableInfo = { id: string; code: string };
 type Member = { user_id: string; display_name: string; role: string;character_id:string|null };
@@ -68,6 +69,7 @@ export function DiceTable({
   initialCompanions,initialCompanionCommands,
   ghostMode,
   characters,initialAwareness,initialMessengerBirds,initialMessengerDispatches,
+  initialWorldBoss,initialWorldBossContributions,
 }: {
   initialTable: TableInfo | null;
   initialRolls: DiceRoll[];
@@ -84,6 +86,7 @@ export function DiceTable({
   initialCompanions:RoomHomunculus[];initialCompanionCommands:RoomHomunculusCommand[];
   ghostMode:boolean;
   characters:{id:string;name:string}[];initialAwareness:AwarenessMember[];initialMessengerBirds:number;initialMessengerDispatches:MessengerDispatch[];
+  initialWorldBoss:WorldBoss|null;initialWorldBossContributions:WorldBossContribution[];
 }) {
   const router = useRouter();
   const [table] = useState(initialTable);
@@ -424,6 +427,7 @@ export function DiceTable({
             readOnly={readOnly}
           />
           <HomunculusRoomPanel tableId={table.id} currentUserId={currentUserId} readOnly={readOnly} monsters={initialMonsters} initialCompanions={initialCompanions} initialCommands={initialCompanionCommands}/>
+          <WorldBossPanel tableId={table.id} characterId={ownMember?.character_id??null} readOnly={readOnly} initialBoss={initialWorldBoss} initialContributions={initialWorldBossContributions}/>
           <RoomSavePanel
             tableId={table.id}
             isDm={ownMember?.role === "dm"}

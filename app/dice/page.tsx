@@ -14,6 +14,7 @@ import type { GeneratedMonster } from "../../lib/monsters/types";
 import { DiceTable } from "./dice-table";
 import type{MessengerDispatch}from"./party-awareness";
 import type { RoomHomunculus, RoomHomunculusCommand } from "./homunculus-room-panel";
+import type{WorldBoss,WorldBossContribution}from"../../lib/combat/world-boss";
 
 export const metadata: Metadata = { title: "Realtime Dice — Mythweave" };
 
@@ -29,6 +30,7 @@ export default async function DicePage({ searchParams }: Props) {
   let ghostMode=false;
   if(activeSolo){const{data:life}=await supabase.from("solo_life_states").select("status").eq("character_id",activeSolo.character_id).maybeSingle();ghostMode=life?.status==="dead";if(!ghostMode)redirect(`/solo?character=${activeSolo.character_id}`);}
   const{data:ownedCharacters}=await supabase.from("characters").select("id,name").order("created_at",{ascending:false});
+  const{data:activeBoss}=await supabase.from("world_bosses").select("*").eq("status","active").order("starts_at",{ascending:false}).limit(1).maybeSingle();
 
   const { table: tableId } = await searchParams;
   let table: { id: string; code: string } | null = null;
@@ -45,6 +47,7 @@ export default async function DicePage({ searchParams }: Props) {
   let monsters: GeneratedMonster[] = [];
   let companions: RoomHomunculus[] = [];
   let companionCommands: RoomHomunculusCommand[] = [];
+  const worldBoss=(activeBoss as WorldBoss|null)??null;let worldBossContributions:WorldBossContribution[]=[];
   if (tableId) {
     const { data } = await supabase
       .from("dice_tables")
@@ -110,6 +113,7 @@ export default async function DicePage({ searchParams }: Props) {
       narrations = ((narrationData ?? []) as DmNarration[]).reverse();
       monsters = (monsterData ?? []) as GeneratedMonster[];
       companions=(companionData??[])as RoomHomunculus[];companionCommands=(companionCommandData??[])as RoomHomunculusCommand[];
+      if(worldBoss){const{data:contributionData}=await supabase.from("world_boss_contributions").select("*").eq("boss_id",worldBoss.id).eq("table_id",table.id).order("created_at",{ascending:false}).limit(12);worldBossContributions=(contributionData??[])as WorldBossContribution[];}
     }
   }
 
@@ -134,6 +138,8 @@ export default async function DicePage({ searchParams }: Props) {
       initialAwareness={awareness}
       initialMessengerBirds={messengerBirds}
       initialMessengerDispatches={messengerDispatches}
+      initialWorldBoss={worldBoss}
+      initialWorldBossContributions={worldBossContributions}
     />
   );
 }
