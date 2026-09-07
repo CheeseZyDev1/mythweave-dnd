@@ -14,9 +14,8 @@ export async function POST(request: Request) {
 
   const { data, error } = await supabase.rpc("send_room_message", { target_table_id: tableId, message_content: content }).single();
   if (error || !data) {
-    const code = error?.message.includes("rate limited") ? "rate_limited" : error?.message.includes("not a member") ? "not_a_member" : "send_failed";
-    return NextResponse.json({ error: code }, { status: code === "rate_limited" ? 429 : code === "not_a_member" ? 403 : 500 });
+    const code = error?.message.includes("spectator read only") ? "spectator_read_only" : error?.message.includes("rate limited") ? "rate_limited" : error?.message.includes("not a member") ? "not_a_member" : "send_failed";
+    return NextResponse.json({ error: code }, { status: code === "rate_limited" ? 429 : ["not_a_member","spectator_read_only"].includes(code) ? 403 : 500 });
   }
   return NextResponse.json({ message: data }, { status: 201 });
 }
-

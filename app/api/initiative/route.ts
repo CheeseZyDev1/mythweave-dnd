@@ -12,8 +12,9 @@ export async function POST(request: Request) {
   const tableId = String(body?.tableId ?? "");
   if (!UUID.test(tableId)) return NextResponse.json({ error: "invalid_table" }, { status: 400 });
 
-  const { data: member } = await supabase.from("dice_table_members").select("user_id").eq("table_id", tableId).eq("user_id", user.id).maybeSingle();
+  const { data: member } = await supabase.from("dice_table_members").select("user_id,role").eq("table_id", tableId).eq("user_id", user.id).maybeSingle();
   if (!member) return NextResponse.json({ error: "not_a_member" }, { status: 403 });
+  if(member.role==="spectator")return NextResponse.json({error:"spectator_read_only"},{status:403});
 
   if (action === "add") {
     const name = String(body?.name ?? "").trim().replace(/\s+/g, " ").slice(0, 40);

@@ -29,6 +29,8 @@ const tableErrors: Record<string, string> = {
   invalid_code: "รูปแบบรหัสไม่ถูกต้อง",
   table_not_found: "ไม่พบโต๊ะเต๋ารหัสนี้",
   create_failed: "สร้างโต๊ะไม่สำเร็จ",
+  ghost_spectator_only: "ดวงวิญญาณเข้าร่วมได้เฉพาะ Spectator",
+  solo_mode_active: "ต้องอยู่ในสภาพวิญญาณก่อนเข้าชมห้อง",
 };
 
 function formatCode(value: string) {
@@ -63,6 +65,7 @@ export function DiceTable({
   initialNarrations,
   initialMonsters,
   initialCompanions,initialCompanionCommands,
+  ghostMode,
 }: {
   initialTable: TableInfo | null;
   initialRolls: DiceRoll[];
@@ -77,12 +80,13 @@ export function DiceTable({
   initialNarrations: DmNarration[];
   initialMonsters: GeneratedMonster[];
   initialCompanions:RoomHomunculus[];initialCompanionCommands:RoomHomunculusCommand[];
+  ghostMode:boolean;
 }) {
   const router = useRouter();
   const [table] = useState(initialTable);
   const [rolls, setRolls] = useState(initialRolls);
   const [code, setCode] = useState("");
-  const [joinRole, setJoinRole] = useState("player");
+  const [joinRole, setJoinRole] = useState(ghostMode?"spectator":"player");
   const [diceCount, setDiceCount] = useState(1);
   const [diceSides, setDiceSides] = useState(20);
   const [modifier, setModifier] = useState(0);
@@ -96,6 +100,7 @@ export function DiceTable({
   const [rolling, setRolling] = useState(false);
   const latest = rolls.at(-1) ?? null;
   const ownMember = members.find((member) => member.user_id === currentUserId);
+  const readOnly=ownMember?.role==="spectator";
 
   useEffect(() => {
     if (!table) return;
@@ -220,16 +225,13 @@ export function DiceTable({
             <br />
             พร้อมกัน
           </h1>
-          <p>
-            สร้างห้องใหม่ในฐานะ DM แล้วส่งรหัสให้เพื่อน
-            หรือกรอกรหัสและเลือกบทบาท ทุกผลทอยจะปรากฏพร้อมกันแบบ real-time
-          </p>
+          <p>{ghostMode?"ร่างกายของคุณล้มลงแล้ว แต่ดวงวิญญาณยังเข้าห้องด้วยรหัสเพื่อเฝ้าดูปาร์ตี้แบบ read-only ได้":"สร้างห้องใหม่ในฐานะ DM แล้วส่งรหัสให้เพื่อน หรือกรอกรหัสและเลือกบทบาท ทุกผลทอยจะปรากฏพร้อมกันแบบ real-time"}</p>
           <div className="dice-gateway-actions">
-            <button onClick={() => tableAction("create")} disabled={busy}>
+            {!ghostMode&&<button onClick={() => tableAction("create")} disabled={busy}>
               {busy ? "กำลังเปิดห้อง…" : "สร้างห้องใหม่ · เป็น DM"}
-            </button>
+            </button>}
             <span>หรือเข้าร่วมด้วยรหัส</span>
-            <div className="dice-role-picker">
+            {ghostMode?<div className="ghost-mode-banner">GHOST · SPECTATOR ONLY</div>:<div className="dice-role-picker">
               {[
                 ["player", "Player"],
                 ["dm", "DM"],
@@ -243,7 +245,7 @@ export function DiceTable({
                   {label}
                 </button>
               ))}
-            </div>
+            </div>}
             <div>
               <input
                 aria-label="รหัสห้อง"
@@ -278,12 +280,14 @@ export function DiceTable({
       </header>
       <section className="dice-layout">
         <aside className="dice-controls">
+          {readOnly&&<div className="ghost-mode-banner">{ghostMode?"GHOST MODE":"SPECTATOR"} · READ ONLY</div>}
           <small>ROLL CONFIGURATION</small>
           <h1>ลูกเต๋าแห่งชะตา</h1>
           <p>ผู้ทอย: {ownMember?.display_name ?? "Adventurer"}</p>
           <label>
             <span>จำนวนลูก</span>
             <select
+              disabled={readOnly}
               value={diceCount}
               onChange={(event) => setDiceCount(Number(event.target.value))}
             >
@@ -299,6 +303,7 @@ export function DiceTable({
           <div className="dice-types">
             {DICE_SIDES.map((sides) => (
               <button
+                disabled={readOnly}
                 className={diceSides === sides ? "selected" : ""}
                 onClick={() => setDiceSides(sides)}
                 key={sides}
@@ -310,6 +315,7 @@ export function DiceTable({
           <label>
             <span>Modifier</span>
             <input
+              disabled={readOnly}
               type="number"
               min="-100"
               max="100"
@@ -324,7 +330,7 @@ export function DiceTable({
           <button
             className="dice-roll-button"
             onClick={rollDice}
-            disabled={busy}
+            disabled={busy||readOnly}
           >
             {busy ? "กำลังทอย…" : `ทอย ${diceCount}d${diceSides}`}
           </button>
@@ -365,6 +371,7 @@ export function DiceTable({
             tableId={table.id}
             initialEntries={initialInitiativeEntries}
             initialTracker={initialInitiativeTracker}
+            readOnly={readOnly}
           />
           <section className="dice-history">
             <header>
@@ -408,6 +415,7 @@ export function DiceTable({
             tableId={table.id}
             currentUserId={currentUserId}
             initialMessages={initialMessages}
+            readOnly={readOnly}
           />
           <HomunculusRoomPanel tableId={table.id} initialCompanions={initialCompanions} initialCommands={initialCompanionCommands}/>
           <RoomSavePanel
@@ -418,6 +426,7 @@ export function DiceTable({
           <NpcDialoguePanel
             tableId={table.id}
             initialHistory={initialNpcHistory}
+            readOnly={readOnly}
           />
           <MonsterForge
             tableId={table.id}

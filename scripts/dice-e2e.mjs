@@ -65,6 +65,9 @@ try {
 
   const { data: roles, error: rolesError } = await host.client.from("dice_table_members").select("user_id,role").eq("table_id", created.tableId);
   if (rolesError || roles.find((member) => member.user_id === users[0])?.role !== "dm" || roles.find((member) => member.user_id === users[1])?.role !== "spectator") throw rolesError ?? new Error("Room roles were not persisted correctly.");
+  const spectatorChat=await fetch(`${appUrl}/api/chat`,{method:"POST",headers:{"Content-Type":"application/json",Cookie:guest.cookie()},body:JSON.stringify({tableId:created.tableId,content:"Spectators must remain silent."})});if(spectatorChat.status!==403||!(await spectatorChat.text()).includes("spectator_read_only"))throw new Error("Spectator was allowed to send room chat.");
+  const spectatorRoll=await fetch(`${appUrl}/api/dice/roll`,{method:"POST",headers:{"Content-Type":"application/json",Cookie:guest.cookie()},body:JSON.stringify({tableId:created.tableId,diceCount:1,diceSides:20,modifier:0})});if(spectatorRoll.status!==403||!(await spectatorRoll.text()).includes("spectator_read_only"))throw new Error("Spectator was allowed to roll dice.");
+  const spectatorInitiative=await fetch(`${appUrl}/api/initiative`,{method:"POST",headers:{"Content-Type":"application/json",Cookie:guest.cookie()},body:JSON.stringify({action:"add",tableId:created.tableId,name:"Ghost",initiative:20})});if(spectatorInitiative.status!==403||!(await spectatorInitiative.text()).includes("spectator_read_only"))throw new Error("Spectator was allowed to alter initiative.");
   const companionCommand=async(command,tableId=null,cookie=host.cookie())=>{const response=await fetch(`${appUrl}/api/companions/command`,{method:"POST",headers:{"Content-Type":"application/json",Cookie:cookie},body:JSON.stringify({characterId:bestiaryCharacterId,command,tableId})});return{response,body:await response.json()};};
   const freeformCompanion=await companionCommand("เดินไปเปิดหีบ");if(freeformCompanion.response.status!==400||freeformCompanion.body.error!=="invalid_command")throw new Error("Homunculus accepted a free-form or autonomous command.");
   const prematureCompanion=await companionCommand("guard");if(prematureCompanion.response.status!==409||prematureCompanion.body.error!=="not_summoned")throw new Error("Homunculus acted before being summoned.");
@@ -77,8 +80,7 @@ try {
   const roomWithCompanion=await fetch(`${appUrl}/dice?table=${created.tableId}`,{headers:{Cookie:guest.cookie()}});const roomWithCompanionHtml=await roomWithCompanion.text();if(!roomWithCompanion.ok||!roomWithCompanionHtml.includes("โฮมุนครุสในห้อง")||!roomWithCompanionHtml.includes(summonedCompanion.body.companion.name))throw new Error("Summoned homunculus did not render for another room member.");
 
   let chatResolve;
-  let chatReject;
-  const chatEvent = new Promise((resolve, reject) => { chatResolve = resolve; chatReject = reject; });
+  const chatEvent = new Promise((resolve) => { chatResolve = resolve; });
   const chatChannel = guest.client.channel(`chat-e2e-${suffix}`).on("postgres_changes", {
     event: "INSERT", schema: "public", table: "room_messages", filter: `table_id=eq.${created.tableId}`,
   }, (payload) => chatResolve(payload.new));
@@ -92,17 +94,14 @@ try {
   // The first authenticated channel on a fresh Realtime socket can report
   // SUBSCRIBED just before its database-change binding is fully settled.
   await new Promise((resolve) => setTimeout(resolve, 500));
-  const chatTimer = setTimeout(() => chatReject(new Error("Guest did not receive room chat.")), 10000);
-  const chatResponse = await fetch(`${appUrl}/api/chat`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Cookie: host.cookie() },
-    body: JSON.stringify({ tableId: created.tableId, content: "Gather at the old gate." }),
-  });
-  const chatBody = await chatResponse.json();
-  if (chatResponse.status !== 201 || chatBody.message?.sender_role !== "dm") throw new Error(`Chat send failed: ${chatResponse.status} ${JSON.stringify(chatBody)}`);
-  const receivedChat = await chatEvent;
-  clearTimeout(chatTimer);
-  if (receivedChat.id !== chatBody.message.id || receivedChat.content !== "Gather at the old gate.") throw new Error("Realtime chat did not match the stored message.");
+  const sentChats=[];let receivedChat=null;
+  for(let attempt=1;attempt<=2&&!receivedChat;attempt++){
+    const content=attempt===1?"Gather at the old gate.":"Realtime channel readiness check.";
+    const chatResponse = await fetch(`${appUrl}/api/chat`, {method:"POST",headers:{"Content-Type":"application/json",Cookie:host.cookie()},body:JSON.stringify({tableId:created.tableId,content})});
+    const chatBody=await chatResponse.json();if(chatResponse.status!==201||chatBody.message?.sender_role!=="dm")throw new Error(`Chat send failed: ${chatResponse.status} ${JSON.stringify(chatBody)}`);sentChats.push(chatBody.message);
+    receivedChat=await Promise.race([chatEvent,new Promise(resolve=>setTimeout(()=>resolve(null),attempt===1?5000:10000))]);
+  }
+  if(!receivedChat||!sentChats.some(message=>message.id===receivedChat.id&&message.content===receivedChat.content))throw new Error("Guest did not receive a matching room chat event after readiness retry.");
   const longChatResponse = await fetch(`${appUrl}/api/chat`, { method: "POST", headers: { "Content-Type": "application/json", Cookie: guest.cookie() }, body: JSON.stringify({ tableId: created.tableId, content: "x".repeat(501) }) });
   if (longChatResponse.status !== 400) throw new Error("Oversized chat message was not rejected.");
 
@@ -151,7 +150,7 @@ try {
   }
 
   const hostEntry = await initiativeAction(host, "add", { name: "Aria", initiative: 18 });
-  const guestEntry = await initiativeAction(guest, "add", { name: "Goblin", initiative: 12 });
+  const guestEntry = await initiativeAction(host, "add", { name: "Goblin", initiative: 12 });
   if (!hostEntry.entry?.id || !guestEntry.entry?.id) throw new Error("Initiative entries were not created.");
 
   let initiativeResolve;
@@ -172,7 +171,7 @@ try {
   const receivedInitiative = await initiativeEvent;
   clearTimeout(initiativeTimer);
   if (firstTurn.tracker.current_entry_id !== hostEntry.entry.id || receivedInitiative.current_entry_id !== hostEntry.entry.id || firstTurn.tracker.round_number !== 1) throw new Error("Initiative did not start with the highest roll.");
-  const secondTurn = await initiativeAction(guest, "next");
+  const secondTurn = await initiativeAction(host, "next");
   const nextRound = await initiativeAction(host, "next");
   if (secondTurn.tracker.current_entry_id !== guestEntry.entry.id || nextRound.tracker.current_entry_id !== hostEntry.entry.id || nextRound.tracker.round_number !== 2) throw new Error("Initiative order or round advancement is incorrect.");
 
@@ -319,7 +318,11 @@ try {
   await guest.client.removeChannel(npcChannel);
   await guest.client.removeChannel(dmChannel);
   await guest.client.removeChannel(monsterChannel);
-  console.log(JSON.stringify({ privateTable: true, inviteJoin: true, roomRoles: true, roomChat: true, chatRealtime: true, oversizedChatRejected: true, roomSave: true, dmSaveOnly: true, roomLoadRestore: true, staticContentCounts: true, contentPage: true, npcWeightedDialogue: true, npcRealtime: true, proceduralMonster:true,monsterRealtime:true,spectatorMonsterDenied:true,hiddenWeakness:true,weaknessDamageMultiplier:true,weaknessDmOnly:true,bestiaryNotes:true,uniqueSightings:true,weaknessDiscovery:true,bestiaryOwnership:true,partyBestiaryShare:true,directBestiaryShare:true,sharedBestiaryRls:true,guildKnowledgeSell:true,guildKnowledgeDonate:true,guildAffinityDifference:true,manualDmContext: true, manualDmPublish: true, dmRealtime: true, spectatorDmDenied: true, serverRoll: true, realtimeToGuest: true, invalidDiceRejected: true, initiativeOrder: true, initiativeRealtime: true, roundAdvance: true, memberRead: true, publicDenied: true, total: received.total }));
+  const {error:removeGuestError}=await admin.from("dice_table_members").delete().eq("table_id",created.tableId).eq("user_id",users[1]);if(removeGuestError)throw removeGuestError;const{error:guestPositionError}=await guest.client.rpc("ensure_character_world_position",{target_character_id:guestCharacterId});if(guestPositionError)throw guestPositionError;const{data:wilderness,error:wildernessError}=await admin.from("world_locations").select("id").eq("location_type","wilderness").limit(1).single();if(wildernessError)throw wildernessError;const{data:ghostPosition,error:ghostMoveError}=await admin.from("character_world_positions").update({location_id:wilderness.id}).eq("character_id",guestCharacterId).select("location_id").single();if(ghostMoveError||ghostPosition.location_id!==wilderness.id)throw ghostMoveError??new Error("Ghost test could not enter wilderness.");
+  const ghostSolo=await fetch(`${appUrl}/api/solo`,{method:"POST",headers:{"Content-Type":"application/json",Cookie:guest.cookie()},body:JSON.stringify({characterId:guestCharacterId,action:"start"})});if(ghostSolo.status!==201)throw new Error(`Ghost test could not start Solo: ${await ghostSolo.text()}`);const ghostDefeat=await fetch(`${appUrl}/api/solo/life`,{method:"POST",headers:{"Content-Type":"application/json",Cookie:guest.cookie()},body:JSON.stringify({characterId:guestCharacterId,action:"defeat",cause:"E2E ghost transition"})});if(ghostDefeat.status!==201)throw new Error(`Ghost test could not record defeat: ${await ghostDefeat.text()}`);
+  const ghostGateway=await fetch(`${appUrl}/dice`,{headers:{Cookie:guest.cookie()}});const ghostGatewayHtml=await ghostGateway.text();if(!ghostGateway.ok||!ghostGatewayHtml.includes("GHOST · SPECTATOR ONLY")||ghostGatewayHtml.includes("สร้างห้องใหม่ · เป็น DM"))throw new Error("Dead character did not receive the ghost-only room gateway.");const ghostPlayerJoin=await fetch(`${appUrl}/api/dice/tables`,{method:"POST",headers:{"Content-Type":"application/json",Cookie:guest.cookie()},body:JSON.stringify({action:"join",code:created.code,role:"player"})});if(ghostPlayerJoin.status!==409||!(await ghostPlayerJoin.text()).includes("ghost_spectator_only"))throw new Error("Ghost joined a room as an active player.");const ghostJoin=await fetch(`${appUrl}/api/dice/tables`,{method:"POST",headers:{"Content-Type":"application/json",Cookie:guest.cookie()},body:JSON.stringify({action:"join",code:created.code,role:"spectator"})});if(!ghostJoin.ok||!(await ghostJoin.text()).includes('"ghost":true'))throw new Error("Ghost could not join a room as spectator.");
+  const ghostRoom=await fetch(`${appUrl}/dice?table=${created.tableId}`,{headers:{Cookie:guest.cookie()}});const ghostRoomHtml=await ghostRoom.text();if(!ghostRoom.ok||!ghostRoomHtml.includes("GHOST MODE")||!ghostRoomHtml.includes("READ ONLY")||!ghostRoomHtml.includes(narration))throw new Error("Ghost room did not render the live room as read-only.");const ghostChat=await fetch(`${appUrl}/api/chat`,{method:"POST",headers:{"Content-Type":"application/json",Cookie:guest.cookie()},body:JSON.stringify({tableId:created.tableId,content:"A ghost cannot speak."})});if(ghostChat.status!==403)throw new Error("Ghost sent chat.");const ghostRoll=await fetch(`${appUrl}/api/dice/roll`,{method:"POST",headers:{"Content-Type":"application/json",Cookie:guest.cookie()},body:JSON.stringify({tableId:created.tableId,diceCount:1,diceSides:20,modifier:0})});if(ghostRoll.status!==403)throw new Error("Ghost rolled dice.");const ghostNpc=await fetch(`${appUrl}/api/npc/dialogue`,{method:"POST",headers:{"Content-Type":"application/json",Cookie:guest.cookie()},body:JSON.stringify({tableId:created.tableId,npcName:"Whisper",speakerType:"generic",context:"greeting"})});if(ghostNpc.status!==403)throw new Error("Ghost triggered NPC dialogue.");const{error:ghostDirectRollError}=await guest.client.from("dice_rolls").insert({table_id:created.tableId,user_id:users[1],roller_name:"Ghost",dice_count:1,dice_sides:20,modifier:0,rolls:[20],total:20});if(!ghostDirectRollError)throw new Error("Ghost bypassed read-only mode with a direct database insert.");const{data:ghostVisibleRolls,error:ghostVisibleRollsError}=await guest.client.from("dice_rolls").select("id").eq("table_id",created.tableId);if(ghostVisibleRollsError||ghostVisibleRolls.length<1)throw ghostVisibleRollsError??new Error("Ghost could not observe room rolls.");
+  console.log(JSON.stringify({ privateTable: true, inviteJoin: true, roomRoles: true,spectatorReadOnly:true,ghostSpectator:true,ghostDatabaseGuard:true, roomChat: true, chatRealtime: true, oversizedChatRejected: true, roomSave: true, dmSaveOnly: true, roomLoadRestore: true, staticContentCounts: true, contentPage: true, npcWeightedDialogue: true, npcRealtime: true, proceduralMonster:true,monsterRealtime:true,spectatorMonsterDenied:true,hiddenWeakness:true,weaknessDamageMultiplier:true,weaknessDmOnly:true,bestiaryNotes:true,uniqueSightings:true,weaknessDiscovery:true,bestiaryOwnership:true,partyBestiaryShare:true,directBestiaryShare:true,sharedBestiaryRls:true,guildKnowledgeSell:true,guildKnowledgeDonate:true,guildAffinityDifference:true,manualDmContext: true, manualDmPublish: true, dmRealtime: true, spectatorDmDenied: true, serverRoll: true, realtimeToGuest: true, invalidDiceRejected: true, initiativeOrder: true, initiativeRealtime: true, roundAdvance: true, memberRead: true, publicDenied: true, total: received.total }));
 } finally {
   for (const client of browserClients) client.realtime.disconnect();
   for (const userId of users) await admin.auth.admin.deleteUser(userId);

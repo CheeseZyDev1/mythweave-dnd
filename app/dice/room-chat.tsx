@@ -4,7 +4,7 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import { createClient } from "../../lib/supabase/client";
 import type { RoomMessage } from "../../lib/chat/types";
 
-export function RoomChat({ tableId, currentUserId, initialMessages }: { tableId: string; currentUserId: string; initialMessages: RoomMessage[] }) {
+export function RoomChat({ tableId, currentUserId, initialMessages, readOnly=false }: { tableId: string; currentUserId: string; initialMessages: RoomMessage[]; readOnly?:boolean }) {
   const [messages, setMessages] = useState(initialMessages);
   const [content, setContent] = useState("");
   const [busy, setBusy] = useState(false);
@@ -40,5 +40,5 @@ export function RoomChat({ tableId, currentUserId, initialMessages }: { tableId:
     finally { setBusy(false); }
   }
 
-  return <section className="room-chat"><header><div><small>PARTY CHANNEL · LIVE</small><h2>แชตในห้อง</h2></div><span>{messages.length} ข้อความ</span></header><div className="room-chat-list" ref={listRef}>{messages.length ? messages.map((message) => <article className={message.user_id === currentUserId ? "mine" : ""} key={message.id}><div><strong>{message.sender_name}</strong><i>{message.sender_role.toUpperCase()}</i><time>{new Date(message.created_at).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })}</time></div><p>{message.content}</p></article>) : <div className="room-chat-empty">ส่งข้อความแรกเพื่อเรียกปาร์ตี้มารวมตัว</div>}</div><form onSubmit={send}><input aria-label="ข้อความในห้อง" maxLength={500} placeholder="พิมพ์ข้อความถึงปาร์ตี้…" value={content} onChange={(event) => setContent(event.target.value)} /><button disabled={busy || !content.trim()}>{busy ? "…" : "ส่ง"}</button></form>{error && <p className="dice-error">{error}</p>}</section>;
+  return <section className="room-chat"><header><div><small>PARTY CHANNEL · LIVE</small><h2>แชตในห้อง</h2></div><span>{readOnly?"READ ONLY":`${messages.length} ข้อความ`}</span></header><div className="room-chat-list" ref={listRef}>{messages.length ? messages.map((message) => <article className={message.user_id === currentUserId ? "mine" : ""} key={message.id}><div><strong>{message.sender_name}</strong><i>{message.sender_role.toUpperCase()}</i><time>{new Date(message.created_at).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })}</time></div><p>{message.content}</p></article>) : <div className="room-chat-empty">ยังไม่มีข้อความในห้องนี้</div>}</div>{readOnly?<p className="ghost-readonly-note">ดวงวิญญาณรับฟังได้ แต่ไม่สามารถส่งข้อความ</p>:<form onSubmit={send}><input aria-label="ข้อความในห้อง" maxLength={500} placeholder="พิมพ์ข้อความถึงปาร์ตี้…" value={content} onChange={(event) => setContent(event.target.value)} /><button disabled={busy || !content.trim()}>{busy ? "…" : "ส่ง"}</button></form>}{error && <p className="dice-error">{error}</p>}</section>;
 }

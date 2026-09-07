@@ -22,8 +22,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "invalid_roll" }, { status: 400 });
   }
 
-  const { data: member } = await supabase.from("dice_table_members").select("display_name").eq("table_id", tableId).eq("user_id", user.id).maybeSingle();
+  const { data: member } = await supabase.from("dice_table_members").select("display_name,role").eq("table_id", tableId).eq("user_id", user.id).maybeSingle();
   if (!member) return NextResponse.json({ error: "not_a_member" }, { status: 403 });
+  if(member.role==="spectator")return NextResponse.json({error:"spectator_read_only"},{status:403});
 
   const rolls = Array.from({ length: diceCount }, () => randomInt(1, diceSides + 1));
   const total = rolls.reduce((sum, value) => sum + value, 0) + modifier;
@@ -40,4 +41,3 @@ export async function POST(request: Request) {
   if (error || !data) return NextResponse.json({ error: "roll_failed" }, { status: 500 });
   return NextResponse.json({ roll: data }, { status: 201 });
 }
-

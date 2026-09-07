@@ -16,7 +16,6 @@ export async function POST(request:Request){
   const context=String(body?.context??"");
   if(!UUID.test(tableId)||!npcName||!SPEAKERS.includes(speakerType)||!CONTEXTS.includes(context))return NextResponse.json({error:"invalid_request"},{status:400});
   const {data,error}=await supabase.rpc("trigger_npc_dialogue",{target_table_id:tableId,target_npc_name:npcName,target_speaker_type:speakerType,target_context:context}).single();
-  if(error||!data){const forbidden=error?.message.includes("not a member");return NextResponse.json({error:forbidden?"not_a_member":"dialogue_failed"},{status:forbidden?403:500});}
+  if(error||!data){const spectator=error?.message.includes("spectator read only");const forbidden=spectator||error?.message.includes("not a member");return NextResponse.json({error:spectator?"spectator_read_only":forbidden?"not_a_member":"dialogue_failed"},{status:forbidden?403:500});}
   return NextResponse.json({dialogue:data},{status:201});
 }
-

@@ -24,7 +24,9 @@ export default async function DicePage({ searchParams }: Props) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/auth");
-  const{data:activeSolo}=await supabase.from("solo_adventures").select("character_id").eq("status","active").maybeSingle();if(activeSolo)redirect(`/solo?character=${activeSolo.character_id}`);
+  const{data:activeSolo}=await supabase.from("solo_adventures").select("character_id").eq("status","active").maybeSingle();
+  let ghostMode=false;
+  if(activeSolo){const{data:life}=await supabase.from("solo_life_states").select("status").eq("character_id",activeSolo.character_id).maybeSingle();ghostMode=life?.status==="dead";if(!ghostMode)redirect(`/solo?character=${activeSolo.character_id}`);}
 
   const { table: tableId } = await searchParams;
   let table: { id: string; code: string } | null = null;
@@ -121,6 +123,7 @@ export default async function DicePage({ searchParams }: Props) {
       initialMonsters={monsters}
       initialCompanions={companions}
       initialCompanionCommands={companionCommands}
+      ghostMode={ghostMode}
     />
   );
 }
