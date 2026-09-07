@@ -1,0 +1,2 @@
+create or replace function public.default_dice_table_dimension()returns trigger language plpgsql security definer set search_path=''as $$begin if new.dimension_id is null then select id into new.dimension_id from public.dimension_presets where slug='aetherra-prime'and active;end if;if new.dimension_id is null then raise exception'default dimension unavailable';end if;return new;end;$$;
+create trigger dice_tables_default_dimension before insert on public.dice_tables for each row execute function public.default_dice_table_dimension();

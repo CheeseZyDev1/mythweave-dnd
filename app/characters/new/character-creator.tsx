@@ -9,10 +9,11 @@ import { CharacterAvatar } from "../character-avatar";
 
 const STEP_LABELS = ["ตัวตนและเผ่า", "เส้นทางอาชีพ", "รูปลักษณ์", "ค่าสถานะ"];
 
-export function CharacterCreator() {
+export function CharacterCreator({dimensions}:{dimensions:Array<{id:string;slug:string;name_th:string;difficulty_label_th:string;accent_color:string}>}) {
   const router = useRouter();
   const [step, setStep] = useState(0);
   const [name, setName] = useState("");
+  const [dimensionId,setDimensionId]=useState(dimensions[0]?.id??"");
   const [race, setRace] = useState("human");
   const [characterClass, setCharacterClass] = useState("fighter");
   const [appearance, setAppearance] = useState<Appearance>(DEFAULT_APPEARANCE);
@@ -65,7 +66,7 @@ export function CharacterCreator() {
     const response = await fetch("/api/characters", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, race, characterClass, appearance, stats }),
+      body: JSON.stringify({ name, race, characterClass, appearance, stats,dimensionId }),
     });
     const result = await response.json().catch(() => ({}));
     if (!response.ok) {
@@ -91,6 +92,7 @@ export function CharacterCreator() {
           {step === 0 && <div className="creator-stage">
             <span className="creator-kicker">01 · ORIGIN</span><h1>ตั้งชื่อและเลือกสายเลือด</h1><p>เผ่าจะเพิ่มค่าสถานะและกำหนดจุดเริ่มต้นของเรื่องราวในอนาคต</p>
             <label className="creator-name"><span>ชื่อตัวละคร</span><input autoFocus maxLength={24} onChange={(event) => setName(event.target.value)} placeholder="เช่น Aria Nightbloom" value={name} /></label>
+            <label className="creator-name"><span>มิติประจำตัว · เปลี่ยนข้ามมิติไม่ได้</span><select value={dimensionId}onChange={event=>setDimensionId(event.target.value)}>{dimensions.map(dimension=><option value={dimension.id}key={dimension.id}>{dimension.name_th} · {dimension.difficulty_label_th}</option>)}</select></label>
             <div className="race-grid">{RACES.map((item) => <button className={race === item.id ? "selected" : ""} key={item.id} onClick={() => chooseRace(item.id)} type="button"><b>{item.icon}</b><span><strong>{item.label}</strong><small>{item.tagline}</small></span><em>{Object.entries(item.bonuses).map(([key, value]) => `+${value} ${STAT_LABELS[key as StatKey].short}`).join(" · ")}</em></button>)}</div>
           </div>}
           {step === 1 && <div className="creator-stage">

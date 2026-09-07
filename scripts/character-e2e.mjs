@@ -26,6 +26,7 @@ try {
   const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { display_name: "Forge Tester" } } });
   if (error || !data.user || !data.session) throw error ?? new Error("Sign-up did not return a session.");
   userId = data.user.id;
+  const{data:primeDimension,error:primeDimensionError}=await supabase.from("dimension_presets").select("id").eq("slug","aetherra-prime").single();if(primeDimensionError)throw primeDimensionError;
 
   const cookie = [...cookieJar].map(([name, value]) => `${name}=${encodeURIComponent(value)}`).join("; ");
   const createResponse = await fetch(`${appUrl}/api/characters`, {
@@ -37,6 +38,7 @@ try {
       characterClass: "ranger",
       stats: { strength: 8, dexterity: 15, constitution: 14, intelligence: 10, wisdom: 13, charisma: 12 },
       appearance: { skinTone: "warm", hairStyle: "braid", hairColor: "silver", face: "sharp", body: "balanced" },
+      dimensionId:primeDimension.id,
     }),
   });
   const createBody = await createResponse.json();

@@ -14,8 +14,11 @@ export async function POST(request: Request) {
   const name = String(body.name ?? "").trim().replace(/\s+/g, " ");
   const race = String(body.race ?? "");
   const characterClass = String(body.characterClass ?? "");
+  const dimensionId = String(body.dimensionId ?? "");
   if (name.length < 2 || name.length > 24 || !/^[\p{L}\p{M}\p{N} ._'-]+$/u.test(name)) return NextResponse.json({ error: "invalid_name" }, { status: 400 });
   if (!findRace(race) || !findClass(characterClass)) return NextResponse.json({ error: "invalid_archetype" }, { status: 400 });
+  const{data:dimension}=await supabase.from("dimension_presets").select("id").eq("id",dimensionId).eq("active",true).maybeSingle();
+  if(!dimension)return NextResponse.json({error:"invalid_dimension"},{status:400});
   if (!isValidStats(body.stats)) return NextResponse.json({ error: "invalid_stats" }, { status: 400 });
   if (!isValidAppearance(body.appearance)) return NextResponse.json({ error: "invalid_appearance" }, { status: 400 });
 
@@ -38,6 +41,7 @@ export async function POST(request: Request) {
     hp_current: hp,
     hp_max: hp,
     appearance: body.appearance,
+    dimension_id: dimension.id,
   }).select("id").single();
 
   if (error) return NextResponse.json({ error: "save_failed" }, { status: 500 });

@@ -9,5 +9,6 @@ export default async function NewCharacterPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/auth");
-  return <CharacterCreator />;
+  const{data:dimensions}=await supabase.from("dimension_presets").select("id,slug,name_th,difficulty_label_th,accent_color").eq("active",true).order("sort_order");
+  return <CharacterCreator dimensions={dimensions??[]} />;
 }
