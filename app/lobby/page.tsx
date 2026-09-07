@@ -36,6 +36,7 @@ export default async function LobbyPage() {
           <article><span>03 · ACTIVE</span><h2>ทอยเต๋าพร้อมกัน</h2><p>ส่งผลเต๋าแบบ real-time ให้ผู้เล่นในห้องเห็นพร้อมกัน</p><Link href="/dice">เปิดโต๊ะเต๋า →</Link></article>
           <article><span>DM · TOOLS</span><h2>เครื่องมือผู้ดำเนินเกม</h2><p>เปิดห้องที่ดูแลและส่งรายงานเหตุการณ์ โดยไม่ปะปนกับระบบ Admin</p><Link href="/dm">เปิด DM Toolkit →</Link></article>
           <article><span>04 · WORLD</span><h2>คลังเนื้อหา</h2><p>ตรวจ item, dialogue, quest และ event ที่พร้อมใช้งาน</p><Link href="/content">เปิด World Content →</Link></article>
+          <article><span>05 · DIMENSIONS</span><h2>มิติและกฎโลก</h2><p>สำรวจ preset ความยาก ธีม และเนื้อเรื่องที่แยกจากกัน</p><Link href="/dimensions">เปิด Reality Atlas →</Link></article>
         </div>
       </section>
     </main>
