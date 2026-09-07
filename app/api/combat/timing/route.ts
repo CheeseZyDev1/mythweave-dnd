@@ -10,6 +10,7 @@ export async function POST(request:Request){
   }
   if(action==="resolve"){
     const actionId=String(body?.actionId??"");const pressedAt=String(body?.pressedAt??new Date().toISOString());if(!UUID.test(actionId)||!Number.isFinite(Date.parse(pressedAt)))return NextResponse.json({error:"invalid_request"},{status:400});
+    const{data:existing}=await supabase.from("timed_combat_actions").select("status").eq("id",actionId).maybeSingle();if(existing?.status==="resolved")return NextResponse.json({error:"already_resolved"},{status:409});
     const{data,error}=await supabase.rpc("resolve_timed_attack_synced",{target_action_id:actionId,client_pressed_at:pressedAt});if(error||!data){const message=error?.message??"";const code=message.includes("player required")?"player_required":message.includes("invalid press")?"invalid_press_time":message.includes("already resolved")?"already_resolved":message.includes("not found")?"not_found":"resolve_failed";return NextResponse.json({error:code},{status:code==="player_required"?403:code==="not_found"?404:code==="resolve_failed"?500:409});}return NextResponse.json(data);
   }
   return NextResponse.json({error:"invalid_request"},{status:400});
