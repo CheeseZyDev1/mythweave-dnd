@@ -29,6 +29,7 @@ import "./persistent-party.css";
 import "./player-trade.css";
 import "./party-votes.css";
 import "./dungeons.css";
+import "./vtt.css";
 
 const cinzel = Cinzel({ subsets: ["latin"], variable: "--font-cinzel" });
 const thai = Noto_Sans_Thai({ subsets: ["thai"], variable: "--font-thai" });

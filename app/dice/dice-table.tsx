@@ -284,7 +284,7 @@ export function DiceTable({
     <main className="dice-shell">
       <header className="dice-topbar">
         <Link href="/lobby">← กลับล็อบบี้</Link>
-        <span>MYTHWEAVE · REALTIME DICE</span>
+        <span>MYTHWEAVE · REALTIME DICE · <Link href={`/vtt?table=${table.id}`}>VTT MAP</Link></span>
         <button onClick={copyCode}>คัดลอกรหัส {table.code}</button>
       </header>
       <section className="dice-layout">
