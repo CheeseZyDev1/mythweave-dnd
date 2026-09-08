@@ -185,6 +185,7 @@ try {
       if (status === "CHANNEL_ERROR") { clearTimeout(timer); reject(new Error("Initiative channel error.")); }
     });
   });
+  await new Promise((resolve)=>setTimeout(resolve,500));
   const initiativeTimer = setTimeout(() => initiativeReject(new Error("Guest did not receive initiative state.")), 10000);
   const firstTurn = await initiativeAction(host, "next");
   const receivedInitiative = await initiativeEvent;
