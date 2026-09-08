@@ -10,7 +10,11 @@ export async function POST(request: Request) {
   const displayName = String(user.user_metadata?.display_name ?? user.email?.split("@")[0] ?? "Adventurer").trim().slice(0, 40);
   const requestedCharacterId=String(body?.characterId??"");
   const{data:ownedCharacters}=await supabase.from("characters").select("id,dimension_id").order("created_at",{ascending:false});
-  let characterId=ownedCharacters?.some(character=>character.id===requestedCharacterId)?requestedCharacterId:ownedCharacters?.[0]?.id??null;
+  const{data:lifeProfiles}=await supabase.from("character_life_profiles").select("character_id,status");
+  const aliveIds=new Set(lifeProfiles?.filter(profile=>profile.status==="alive").map(profile=>profile.character_id)??[]);
+  const requestedOwned=ownedCharacters?.some(character=>character.id===requestedCharacterId)??false;
+  if(requestedCharacterId&&requestedOwned&&!aliveIds.has(requestedCharacterId))return NextResponse.json({error:"character_unavailable"},{status:409});
+  let characterId=requestedOwned?requestedCharacterId:ownedCharacters?.find(character=>aliveIds.has(character.id))?.id??null;
   const {data:activeSolo}=await supabase.from("solo_adventures").select("character_id").eq("status","active").maybeSingle();
   let isGhost=false;
   if(activeSolo){const{data:life}=await supabase.from("solo_life_states").select("status").eq("character_id",activeSolo.character_id).maybeSingle();isGhost=life?.status==="dead";if(isGhost)characterId=activeSolo.character_id;}

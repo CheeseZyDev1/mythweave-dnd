@@ -32,6 +32,7 @@ const tableErrors: Record<string, string> = {
   table_not_found: "ไม่พบโต๊ะเต๋ารหัสนี้",
   create_failed: "สร้างโต๊ะไม่สำเร็จ",
   ghost_spectator_only: "ดวงวิญญาณเข้าร่วมได้เฉพาะ Spectator",
+  character_unavailable: "ตัวละครนี้เสียชีวิตหรือจบตำนานแล้ว",
   solo_mode_active: "ต้องอยู่ในสภาพวิญญาณก่อนเข้าชมห้อง",
 };
 
