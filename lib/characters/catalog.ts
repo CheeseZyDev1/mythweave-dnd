@@ -65,6 +65,15 @@ export const APPEARANCE_OPTIONS = {
     { id: "balanced", label: "สมส่วน" },
     { id: "broad", label: "กำยำ" },
   ],
+  portraitBackdrop: [
+    { id: "forest", label: "พงไพร" }, { id: "ember", label: "เปลวเพลิง" }, { id: "astral", label: "ดาราจักร" }, { id: "royal", label: "ราชสำนัก" },
+  ],
+  portraitFrame: [
+    { id: "gold", label: "ทองโบราณ" }, { id: "thorn", label: "เถาหนาม" }, { id: "arcane", label: "รูนเวท" },
+  ],
+  portraitSigil: [
+    { id: "class", label: "ตราอาชีพ" }, { id: "moon", label: "จันทรา" }, { id: "flame", label: "อัคคี" }, { id: "leaf", label: "พฤกษา" }, { id: "crown", label: "มงกุฎ" },
+  ],
 } as const;
 
 export type Appearance = {
@@ -73,10 +82,13 @@ export type Appearance = {
   hairColor: (typeof APPEARANCE_OPTIONS.hairColor)[number]["id"];
   face: (typeof APPEARANCE_OPTIONS.face)[number]["id"];
   body: (typeof APPEARANCE_OPTIONS.body)[number]["id"];
+  portraitBackdrop?: (typeof APPEARANCE_OPTIONS.portraitBackdrop)[number]["id"];
+  portraitFrame?: (typeof APPEARANCE_OPTIONS.portraitFrame)[number]["id"];
+  portraitSigil?: (typeof APPEARANCE_OPTIONS.portraitSigil)[number]["id"];
 };
 
 export const DEFAULT_STATS: Stats = { strength: 8, dexterity: 8, constitution: 8, intelligence: 8, wisdom: 8, charisma: 8 };
-export const DEFAULT_APPEARANCE: Appearance = { skinTone: "warm", hairStyle: "short", hairColor: "raven", face: "soft", body: "balanced" };
+export const DEFAULT_APPEARANCE: Appearance = { skinTone: "warm", hairStyle: "short", hairColor: "raven", face: "soft", body: "balanced",portraitBackdrop:"forest",portraitFrame:"gold",portraitSigil:"class" };
 
 export function findRace(id: string) { return RACES.find((race) => race.id === id); }
 export function findClass(id: string) { return CLASSES.find((item) => item.id === id); }

@@ -107,6 +107,9 @@ export function CharacterCreator({dimensions}:{dimensions:Array<{id:string;slug:
               <AppearanceChoices title="สีผม" items={APPEARANCE_OPTIONS.hairColor} selected={appearance.hairColor} onSelect={(value) => changeAppearance("hairColor", value as Appearance["hairColor"])} colors />
               <AppearanceChoices title="โครงหน้า" items={APPEARANCE_OPTIONS.face} selected={appearance.face} onSelect={(value) => changeAppearance("face", value as Appearance["face"])} />
               <AppearanceChoices title="รูปร่าง" items={APPEARANCE_OPTIONS.body} selected={appearance.body} onSelect={(value) => changeAppearance("body", value as Appearance["body"])} />
+              <AppearanceChoices title="ฉากหลัง Portrait" items={APPEARANCE_OPTIONS.portraitBackdrop} selected={appearance.portraitBackdrop??"forest"} onSelect={(value) => changeAppearance("portraitBackdrop", value as NonNullable<Appearance["portraitBackdrop"]>)} />
+              <AppearanceChoices title="กรอบ Portrait" items={APPEARANCE_OPTIONS.portraitFrame} selected={appearance.portraitFrame??"gold"} onSelect={(value) => changeAppearance("portraitFrame", value as NonNullable<Appearance["portraitFrame"]>)} />
+              <AppearanceChoices title="ตราประจำตัว" items={APPEARANCE_OPTIONS.portraitSigil} selected={appearance.portraitSigil??"class"} onSelect={(value) => changeAppearance("portraitSigil", value as NonNullable<Appearance["portraitSigil"]>)} />
             </div>
           </div>}
           {step === 3 && <div className="creator-stage">

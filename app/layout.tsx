@@ -33,6 +33,7 @@ import "./vtt.css";
 import "./session-recaps.css";
 import "./room-undo.css";
 import "./dice-history.css";
+import "./portrait-studio.css";
 
 const cinzel = Cinzel({ subsets: ["latin"], variable: "--font-cinzel" });
 const thai = Noto_Sans_Thai({ subsets: ["thai"], variable: "--font-thai" });

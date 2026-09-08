@@ -9,15 +9,18 @@ export function CharacterAvatar({ appearance, race, characterClass, name = "ต�
   const bodyHalf = appearance.body === "slim" ? 55 : appearance.body === "broad" ? 78 : 66;
   const headRx = appearance.face === "round" ? 43 : appearance.face === "sharp" ? 35 : 39;
   const eyeColor = race === "fallen" ? "#d9bd75" : race === "goblin" ? "#d7c55c" : "#29322f";
+  const backdrop={forest:["#264f3d","#020806"],ember:["#793d2e","#120705"],astral:["#434676","#08081c"],royal:["#694b24","#120e08"]}[appearance.portraitBackdrop??"forest"];
+  const frameColor={gold:"#d9bd75",thorn:"#79a37c",arcane:"#9c92df"}[appearance.portraitFrame??"gold"];
+  const sigil={class:classInfo.icon,moon:"☾",flame:"♨",leaf:"❧",crown:"♛"}[appearance.portraitSigil??"class"];
 
   return (
     <svg aria-label={`ภาพตัวละคร ${name}`} className="character-avatar" role="img" viewBox="0 0 240 320">
       <defs>
-        <radialGradient id="avatar-aura" cx="50%" cy="38%" r="70%"><stop offset="0" stopColor={classInfo.color} stopOpacity=".5" /><stop offset=".7" stopColor="#07120f" stopOpacity=".2" /><stop offset="1" stopColor="#020806" /></radialGradient>
+        <radialGradient id={`avatar-aura-${characterClass}-${appearance.portraitBackdrop??"forest"}`} cx="50%" cy="38%" r="70%"><stop offset="0" stopColor={backdrop[0]} /><stop offset=".68" stopColor={classInfo.color} stopOpacity=".22" /><stop offset="1" stopColor={backdrop[1]} /></radialGradient>
         <linearGradient id="avatar-cloak" x1="0" x2="1" y1="0" y2="1"><stop stopColor={classInfo.color} /><stop offset="1" stopColor="#17231e" /></linearGradient>
         <filter id="avatar-glow"><feGaussianBlur stdDeviation="3" /></filter>
       </defs>
-      <rect width="240" height="320" rx="8" fill="url(#avatar-aura)" />
+      <rect width="240" height="320" rx="8" fill={`url(#avatar-aura-${characterClass}-${appearance.portraitBackdrop??"forest"})`} />
       <circle cx="120" cy="115" r="74" fill={classInfo.color} opacity=".12" filter="url(#avatar-glow)" />
       {race === "fallen" && <><path d="M78 61 Q120 38 162 61" fill="none" stroke="#d9bd75" strokeDasharray="8 7" strokeWidth="3" /><circle cx="120" cy="48" r="33" fill="none" stroke="#d9bd75" strokeOpacity=".18" /></>}
       <path d={`M${120 - bodyHalf} 300 Q${120 - bodyHalf - 5} 226 83 207 Q120 192 157 207 Q${120 + bodyHalf + 5} 226 ${120 + bodyHalf} 300Z`} fill="url(#avatar-cloak)" stroke="#d9bd75" strokeOpacity=".24" />
@@ -36,9 +39,12 @@ export function CharacterAvatar({ appearance, race, characterClass, name = "ต�
       {appearance.hairStyle === "braid" && <><path d="M82 125 Q78 77 120 69 Q162 76 158 126 Q136 92 120 96 Q102 92 82 125Z" fill={hair} /><path d="M154 104 Q175 145 159 204 Q177 216 159 228 Q143 214 158 199 Q168 147 149 111Z" fill={hair} /><circle cx="159" cy="226" r="6" fill={classInfo.color} /></>}
       {appearance.hairStyle === "mohawk" && <path d="M105 79 Q119 30 134 79 L142 102 Q121 91 98 103Z" fill={hair} />}
       {race === "dwarf" && <path d="M93 156 Q92 203 120 215 Q148 202 147 156 Q138 178 120 183 Q102 178 93 156Z" fill={hair} opacity=".92" />}
-      <circle cx="120" cy="255" r="24" fill="#07100d" stroke="#d9bd75" strokeOpacity=".34" />
-      <text x="120" y="264" fill="#e2c573" fontFamily="serif" fontSize="27" textAnchor="middle">{classInfo.icon}</text>
-      <path d="M28 292 H82 M158 292 H212" stroke="#d9bd75" strokeOpacity=".34" />
+      <circle cx="120" cy="255" r="24" fill="#07100d" stroke={frameColor} strokeOpacity=".7" />
+      <text x="120" y="264" fill={frameColor} fontFamily="serif" fontSize="27" textAnchor="middle">{sigil}</text>
+      <path d="M28 292 H82 M158 292 H212" stroke={frameColor} strokeOpacity=".55" />
+      {appearance.portraitFrame==="thorn"&&<path d="M8 72 Q34 48 18 20 M232 72 Q206 48 222 20 M8 248 Q34 272 18 300 M232 248 Q206 272 222 300" fill="none" stroke={frameColor} strokeWidth="4"/>}
+      {appearance.portraitFrame==="arcane"&&<path d="M12 46 V12 H46 M194 12 H228 V46 M12 274 V308 H46 M194 308 H228 V274" fill="none" stroke={frameColor} strokeWidth="3" strokeDasharray="7 4"/>}
+      <rect x="5" y="5" width="230" height="310" rx="7" fill="none" stroke={frameColor} strokeOpacity=".72" strokeWidth={appearance.portraitFrame==="gold"?"3":"2"}/>
     </svg>
   );
 }

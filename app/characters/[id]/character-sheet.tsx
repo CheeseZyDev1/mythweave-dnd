@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { findClass, findRace, STAT_KEYS, STAT_LABELS, type Appearance, type Stats } from "../../../lib/characters/catalog";
+import { APPEARANCE_OPTIONS,findClass, findRace, STAT_KEYS, STAT_LABELS, type Appearance, type Stats } from "../../../lib/characters/catalog";
 import { abilityModifier } from "../../../lib/characters/rules";
 import type { InventoryItem } from "../../../lib/characters/sheet";
 import { CharacterAvatar } from "../character-avatar";
@@ -31,6 +31,7 @@ const errorMessages: Record<string, string> = {
   invalid_inventory: "กรุณาตรวจชื่อ จำนวน และรายละเอียดสิ่งของ",
   not_found: "ไม่พบตัวละครนี้ หรือคุณไม่มีสิทธิ์แก้ไข",
   save_failed: "บันทึกไม่สำเร็จ กรุณาลองอีกครั้ง",
+  invalid_appearance:"รูปแบบ Portrait ไม่ถูกต้อง",
 };
 
 function signed(value: number) {
@@ -42,6 +43,7 @@ export function CharacterSheet({ character, wallet, statuses, innate }: { charac
   const [hpCurrent, setHpCurrent] = useState(character.hpCurrent);
   const [hpMax, setHpMax] = useState(character.hpMax);
   const [inventory, setInventory] = useState(character.inventory);
+  const[appearance,setAppearance]=useState(character.appearance);
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [message, setMessage] = useState("");
   const race = findRace(character.race);
@@ -73,7 +75,7 @@ export function CharacterSheet({ character, wallet, statuses, innate }: { charac
       const response = await fetch(`/api/characters/${character.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ stats, hpCurrent, hpMax, inventory }),
+        body: JSON.stringify({ stats, hpCurrent, hpMax, inventory,appearance }),
       });
       const result = await response.json();
       if (!response.ok) throw new Error(errorMessages[result.error] ?? errorMessages.save_failed);
@@ -90,7 +92,7 @@ export function CharacterSheet({ character, wallet, statuses, innate }: { charac
       <header className="sheet-topbar"><Link href="/lobby">← กลับล็อบบี้</Link><span>MYTHWEAVE · CHARACTER SHEET</span><button onClick={save} disabled={status === "saving"}>{status === "saving" ? "กำลังบันทึก…" : "บันทึกการเปลี่ยนแปลง"}</button></header>
       <section className="sheet-layout">
         <aside className="sheet-identity">
-          <div className="sheet-avatar"><CharacterAvatar appearance={character.appearance} characterClass={character.characterClass} name={character.name} race={character.race} /></div>
+          <div className="sheet-avatar"><CharacterAvatar appearance={appearance} characterClass={character.characterClass} name={character.name} race={character.race} /></div>
           <small>LEVEL {character.level} · {selectedClass?.role}</small>
           <h1>{character.name}</h1>
           <p>{race?.label} · {selectedClass?.label}</p>
@@ -128,6 +130,7 @@ export function CharacterSheet({ character, wallet, statuses, innate }: { charac
         </aside>
 
         <div className="sheet-main">
+          <section className="sheet-panel portrait-studio"><div className="sheet-section-title"><div><small>PORTRAIT STUDIO</small><h2>ตราประจำตำนาน</h2></div><p>ใช้ร่วมกันบน Character Sheet, Lobby, World Map และ VTT</p></div>{(["portraitBackdrop","portraitFrame","portraitSigil"]as const).map(key=><div className="portrait-choice" key={key}><b>{key==="portraitBackdrop"?"ฉากหลัง":key==="portraitFrame"?"กรอบ":"ตราประจำตัว"}</b><span>{APPEARANCE_OPTIONS[key].map(option=><button className={(appearance[key]??(key==="portraitBackdrop"?"forest":key==="portraitFrame"?"gold":"class"))===option.id?"selected":""} key={option.id} onClick={()=>{setAppearance(current=>({...current,[key]:option.id}));setStatus("idle")}}>{option.label}</button>)}</span></div>)}</section>
           <section className="sheet-panel">
             <div className="sheet-section-title"><div><small>ABILITIES</small><h2>ค่าสถานะ</h2></div><p>ปรับได้ 1–30 · modifier คำนวณอัตโนมัติ</p></div>
             <div className="sheet-stats">{STAT_KEYS.map((key) => <article key={key}><span>{STAT_LABELS[key].short}</span><small>{STAT_LABELS[key].label}</small><strong>{stats[key]}</strong><em>{signed(abilityModifier(stats[key]))}</em><div><button onClick={() => changeStat(key, -1)} disabled={stats[key] <= 1}>−</button><button onClick={() => changeStat(key, 1)} disabled={stats[key] >= 30}>+</button></div></article>)}</div>

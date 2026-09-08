@@ -38,5 +38,6 @@ export function isValidAppearance(value: unknown): value is Appearance {
     face: ["soft", "sharp", "round"],
     body: ["slim", "balanced", "broad"],
   };
-  return Object.entries(allowed).every(([key, values]) => values.includes(String(appearance[key])));
+  const optional={portraitBackdrop:["forest","ember","astral","royal"],portraitFrame:["gold","thorn","arcane"],portraitSigil:["class","moon","flame","leaf","crown"]};
+  return Object.entries(allowed).every(([key, values]) => values.includes(String(appearance[key])))&&Object.entries(optional).every(([key,values])=>appearance[key]===undefined||values.includes(String(appearance[key])));
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "../../../../lib/supabase/server";
 import { isValidInventory, isValidSheetStats } from "../../../../lib/characters/sheet";
+import { isValidAppearance } from "../../../../lib/characters/rules";
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -20,6 +21,7 @@ export async function PATCH(request: Request, context: Context) {
   }
   if (!isValidSheetStats(body.stats)) return NextResponse.json({ error: "invalid_stats" }, { status: 400 });
   if (!isValidInventory(body.inventory)) return NextResponse.json({ error: "invalid_inventory" }, { status: 400 });
+  if (body.appearance !== undefined && !isValidAppearance(body.appearance)) return NextResponse.json({ error: "invalid_appearance" }, { status: 400 });
 
   const { data, error } = await supabase.from("characters").update({
     hp_current: hpCurrent,
@@ -36,10 +38,10 @@ export async function PATCH(request: Request, context: Context) {
       quantity: item.quantity,
       note: item.note.trim(),
     })),
+    ...(body.appearance?{appearance:body.appearance,portrait_version:2}:{}),
   }).eq("id", id).eq("user_id", user.id).select("updated_at").maybeSingle();
 
   if (error) return NextResponse.json({ error: "save_failed" }, { status: 500 });
   if (!data) return NextResponse.json({ error: "not_found" }, { status: 404 });
   return NextResponse.json({ updatedAt: data.updated_at });
 }
-

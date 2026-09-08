@@ -231,14 +231,16 @@ try {
       hpMax: 12,
       stats: { strength: 9, dexterity: 17, constitution: 14, intelligence: 10, wisdom: 13, charisma: 12 },
       inventory: [{ id: "e2e-potion", name: "Healing Potion", quantity: 2, note: "E2E test item" }],
+      appearance:{...character.appearance,portraitBackdrop:"astral",portraitFrame:"arcane",portraitSigil:"moon"},
     }),
   });
   if (!updateResponse.ok) throw new Error(`Character Sheet update failed: ${updateResponse.status} ${await updateResponse.text()}`);
 
-  const { data: updated, error: updateReadError } = await supabase.from("characters").select("hp_current,hp_max,strength,inventory").eq("id", characterId).single();
-  if (updateReadError || updated.hp_current !== 5 || updated.hp_max !== 12 || updated.strength !== 9 || updated.inventory?.[0]?.name !== "Healing Potion") {
+  const { data: updated, error: updateReadError } = await supabase.from("characters").select("hp_current,hp_max,strength,inventory,appearance,portrait_version").eq("id", characterId).single();
+  if (updateReadError || updated.hp_current !== 5 || updated.hp_max !== 12 || updated.strength !== 9 || updated.inventory?.[0]?.name !== "Healing Potion"||updated.appearance?.portraitBackdrop!=="astral"||updated.appearance?.portraitFrame!=="arcane"||updated.appearance?.portraitSigil!=="moon"||updated.portrait_version!==2) {
     throw updateReadError ?? new Error("Character Sheet values were not saved correctly.");
   }
+  const portraitSheet=await fetch(`${appUrl}/characters/${characterId}`,{headers:{Cookie:cookie}});const portraitSheetHtml=await portraitSheet.text();if(!portraitSheet.ok||!portraitSheetHtml.includes("PORTRAIT STUDIO")||!portraitSheetHtml.includes("ตราประจำตำนาน")||!portraitSheetHtml.includes("รูนเวท"))throw new Error("Saved portrait studio did not render on the character sheet.");
 
   const {data:wilderness,error:wildernessError}=await admin.from("world_locations").select("id,name_th").eq("location_type","wilderness").limit(1).single();if(wildernessError)throw wildernessError;const {error:moveToWildernessError}=await admin.from("character_world_positions").update({location_id:wilderness.id}).eq("character_id",characterId);if(moveToWildernessError)throw moveToWildernessError;
   const soloPage=await fetch(`${appUrl}/solo?character=${characterId}`,{headers:{Cookie:cookie}});const soloPageHtml=await soloPage.text();if(!soloPage.ok||!soloPageHtml.includes("เส้นทางผู้เดียวดาย")||!soloPageHtml.includes(wilderness.name_th)||!soloPageHtml.includes("NO MAGIC DROPS"))throw new Error("Solo expedition page did not render its location and restrictions.");
