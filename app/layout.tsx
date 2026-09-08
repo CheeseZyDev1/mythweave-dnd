@@ -25,6 +25,7 @@ import "./ghost-mode.css";
 import "./party-awareness.css";
 import "./factions.css";
 import "./life.css";
+import "./persistent-party.css";
 
 const cinzel = Cinzel({ subsets: ["latin"], variable: "--font-cinzel" });
 const thai = Noto_Sans_Thai({ subsets: ["thai"], variable: "--font-thai" });

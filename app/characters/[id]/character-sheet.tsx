@@ -121,6 +121,7 @@ export function CharacterSheet({ character, wallet, statuses, innate }: { charac
           <Link className="wallet-shop-link" href={`/achievements?character=${character.id}`}>Achievement & Title →</Link>
           <Link className="wallet-shop-link" href={`/factions?character=${character.id}`}>ชื่อเสียงฝ่ายแห่งโลก →</Link>
           <Link className="wallet-shop-link" href={`/life?character=${character.id}`}>ชะตา การตาย และเกิดใหม่ →</Link>
+          <Link className="wallet-shop-link" href={`/party?character=${character.id}`}>ปาร์ตี้ถาวร →</Link>
         </aside>
 
         <div className="sheet-main">
