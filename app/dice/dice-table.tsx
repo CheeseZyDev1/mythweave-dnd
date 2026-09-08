@@ -15,6 +15,7 @@ import { RoomChat } from "./room-chat";
 import type { RoomSave } from "../../lib/room-saves/types";
 import { RoomSavePanel } from "./room-save-panel";
 import { SessionRecapPanel } from "./session-recap-panel";
+import { RoomUndoPanel } from "./room-undo-panel";
 import type { NpcDialogue } from "../../lib/npc/types";
 import { NpcDialoguePanel } from "./npc-dialogue";
 import type { DmNarration } from "../../lib/dm/types";
@@ -436,6 +437,7 @@ export function DiceTable({
             initialSaves={initialSaves}
           />
           <SessionRecapPanel tableId={table.id} isDm={ownMember?.role === "dm"} />
+          <RoomUndoPanel tableId={table.id} isDm={ownMember?.role === "dm"} />
           <NpcDialoguePanel
             tableId={table.id}
             initialHistory={initialNpcHistory}

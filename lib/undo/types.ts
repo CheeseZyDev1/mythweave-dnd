@@ -1,0 +1,1 @@
+export type RoomAction={id:string;table_id:string;actor_user_id:string;action_type:"chat"|"dice"|"narration"|"initiative"|"token_move"|"fog";description_th:string;created_at:string;undone_at:string|null};
