@@ -1,6 +1,9 @@
 import { createBrowserClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 
+const nativeFetch=globalThis.fetch;
+globalThis.fetch=async(...args)=>{for(let attempt=0;;attempt++){try{return await nativeFetch(...args);}catch(error){const code=error?.cause?.code;if(attempt>=2||!["UND_ERR_CONNECT_TIMEOUT","UND_ERR_HEADERS_TIMEOUT","ECONNRESET"].includes(code))throw error;await new Promise(resolve=>setTimeout(resolve,500*(attempt+1)));}}};
+
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
