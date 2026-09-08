@@ -36,6 +36,8 @@ import "./dice-history.css";
 import "./portrait-studio.css";
 import "./theme-controller.css";
 import { ThemeController } from "./theme-controller";
+import "./sound-controller.css";
+import { SoundController } from "./sound-controller";
 
 const cinzel = Cinzel({ subsets: ["latin"], variable: "--font-cinzel" });
 const thai = Noto_Sans_Thai({ subsets: ["thai"], variable: "--font-thai" });
@@ -48,7 +50,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="th">
-      <body className={`${cinzel.variable} ${thai.variable} selection:bg-amber-200 selection:text-emerald-950`}>{children}<ThemeController /></body>
+      <body className={`${cinzel.variable} ${thai.variable} selection:bg-amber-200 selection:text-emerald-950`}>{children}<ThemeController /><SoundController /></body>
     </html>
   );
 }

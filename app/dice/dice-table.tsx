@@ -134,6 +134,7 @@ export function DiceTable({
           );
           setAnimatedRoll(incoming);
           setRolling(true);
+          window.dispatchEvent(new Event("mythweave:dice-sfx"));
           window.setTimeout(() => setRolling(false), 720);
         },
       )
