@@ -6,17 +6,18 @@
 
 ## สถานะปัจจุบัน
 
-- Next.js App Router + Tailwind CSS 4
-- สมัครสมาชิก/เข้าสู่ระบบด้วย Supabase Auth
-- Character Forge: เผ่า คลาส point-buy stats และรูปลักษณ์
-- Character Sheet: HP, ability scores, derived stats และ inventory
-- ห้องส่วนตัวด้วยรหัส พร้อม role Player / DM / Spectator
-- ทอยเต๋า, Initiative, แชต, NPC dialogue และคำบรรยาย DM แบบ real-time
-- Save/load ห้อง 3 slots พร้อม Quest, Wallet, Shop และ Status Effects
-- Manual AI DM Console: สร้าง context ล่าสุดและเผยแพร่คำตอบ โดยไม่เสียค่า API
-- Static content เริ่มต้น: item 65, dialogue 32, quest 30 และ event 15
-- Row Level Security: ผู้เล่นอ่านและแก้ไขได้เฉพาะตัวละครของตนเอง
-- Deploy อัตโนมัติจาก GitHub ไป Vercel
+Roadmap Phase 0–12 เสร็จและ deploy แล้ว ฟีเจอร์หลักประกอบด้วย:
+
+- Next.js App Router, Tailwind CSS 4, Supabase Auth/Database/Realtime และ Vercel
+- Character Forge/Sheet, Portrait Studio, เผ่า คลาส innate ability, inventory, wallet และ status
+- ห้องส่วนตัวด้วยรหัสและ role Player / DM / Spectator พร้อม save/load, chat, dice และ initiative แบบ real-time
+- World map, การเดินทางหลายรูปแบบ, กลางวัน/กลางคืน, อากาศ, NPC schedule และ random encounter
+- Quest, shop/trade, haggling, crafting, procedural item/monster, faction, guild และ Codex/Bestiary
+- Solo/ghost/companion, death/permadeath, persistent party, player trade และ party voting
+- Timing combat, environmental interaction, pet/companion, shared World Boss และ Admin God Mode
+- Dimension presets, stamina/fatigue, RNG mode, achievements, dungeon generator และ Interactive VTT/fog of war
+- Session recap, safe rollback, Dice Chronicle, customizable theme, Howler audio mixer และ Framer Motion
+- Row Level Security และ server-authoritative transaction สำหรับข้อมูลสำคัญ
 
 ขอบเขตเนื้อหาโลกอยู่ที่ [`docs/world-content-scope.md`](docs/world-content-scope.md)
 
@@ -44,6 +45,6 @@ Supabase migrations อยู่ใน `supabase/migrations` และใช้�
 npx supabase db push --linked
 ```
 
-## ลำดับถัดไป
+## สถานะ Roadmap
 
-Phase 0–2 เสร็จแล้ว ลำดับถัดไปคือ Phase 3: ต่อราคา → NPC/Guild affinity → ทำอาหาร/ปรุงยา → procedural item และ monster
+Phase 0–12 เสร็จครบแล้ว ขั้นถัดไปคือ playtest กับผู้เล่นจริง 2–5 คน แล้วเก็บ feedback เพื่อจัดลำดับ balance/content expansion รอบใหม่
