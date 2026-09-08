@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { APPEARANCE_OPTIONS,findClass, findRace, STAT_KEYS, STAT_LABELS, type Appearance, type Stats } from "../../../lib/characters/catalog";
 import { abilityModifier } from "../../../lib/characters/rules";
 import type { InventoryItem } from "../../../lib/characters/sheet";
@@ -44,6 +44,10 @@ export function CharacterSheet({ character, wallet, statuses, innate }: { charac
   const [hpMax, setHpMax] = useState(character.hpMax);
   const [inventory, setInventory] = useState(character.inventory);
   const[appearance,setAppearance]=useState(character.appearance);
+  const[portraitFile,setPortraitFile]=useState<File|null>(null);
+  const[portraitPreview,setPortraitPreview]=useState("");
+  const[portraitBusy,setPortraitBusy]=useState(false);
+  const[portraitMessage,setPortraitMessage]=useState("");
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [message, setMessage] = useState("");
   const race = findRace(character.race);
@@ -52,6 +56,39 @@ export function CharacterSheet({ character, wallet, statuses, innate }: { charac
   const armorClass = 10 + abilityModifier(stats.dexterity);
   const passivePerception = 10 + abilityModifier(stats.wisdom);
   const hpPercent = useMemo(() => Math.max(0, Math.min(100, hpMax ? (hpCurrent / hpMax) * 100 : 0)), [hpCurrent, hpMax]);
+
+  useEffect(()=>()=>{if(portraitPreview)URL.revokeObjectURL(portraitPreview)},[portraitPreview]);
+
+  function choosePortrait(file:File|null){
+    setPortraitMessage("");
+    if(!file)return;
+    if(!["image/jpeg","image/png","image/webp"].includes(file.type)){setPortraitMessage("รองรับเฉพาะ JPG, PNG หรือ WebP");return}
+    if(file.size>5*1024*1024){setPortraitMessage("รูปต้องมีขนาดไม่เกิน 5 MB");return}
+    setPortraitFile(file);setPortraitPreview(URL.createObjectURL(file));
+  }
+
+  async function uploadPortrait(){
+    if(!portraitFile)return;
+    setPortraitBusy(true);setPortraitMessage("");
+    try{
+      const form=new FormData();form.set("portrait",portraitFile);
+      const response=await fetch(`/api/characters/${character.id}/portrait`,{method:"POST",body:form});
+      const result=await response.json();
+      if(!response.ok)throw new Error(result.error==="file_too_large"?"รูปต้องมีขนาดไม่เกิน 5 MB":result.error==="invalid_image"?"ไฟล์นี้ไม่ใช่รูป JPG, PNG หรือ WebP ที่ถูกต้อง":"อัปโหลดรูปไม่สำเร็จ");
+      setAppearance(current=>({...current,customPortraitPath:result.path}));
+      setPortraitFile(null);setPortraitPreview("");setPortraitMessage("ใช้รูปที่อัปโหลดแล้ว · จะแสดงในล็อบบี้ แผนที่ และ VTT");setStatus("saved");
+    }catch(error){setPortraitMessage(error instanceof Error?error.message:"อัปโหลดรูปไม่สำเร็จ")}finally{setPortraitBusy(false)}
+  }
+
+  async function removePortrait(){
+    setPortraitBusy(true);setPortraitMessage("");
+    try{
+      const response=await fetch(`/api/characters/${character.id}/portrait`,{method:"DELETE"});
+      const result=await response.json();if(!response.ok)throw new Error(result.error??"remove_failed");
+      setAppearance(current=>{const{customPortraitPath:_,...generated}=current;return generated as Appearance});
+      setPortraitFile(null);setPortraitPreview("");setPortraitMessage("กลับมาใช้ภาพตัวละครที่ระบบสร้างแล้ว");setStatus("saved");
+    }catch{setPortraitMessage("นำรูปออกไม่สำเร็จ กรุณาลองอีกครั้ง")}finally{setPortraitBusy(false)}
+  }
 
   function changeStat(key: keyof Stats, amount: number) {
     setStats((current) => ({ ...current, [key]: Math.max(1, Math.min(30, current[key] + amount)) }));
@@ -92,7 +129,7 @@ export function CharacterSheet({ character, wallet, statuses, innate }: { charac
       <header className="sheet-topbar"><Link href="/lobby">← กลับล็อบบี้</Link><span>MYTHWEAVE · CHARACTER SHEET</span><button onClick={save} disabled={status === "saving"}>{status === "saving" ? "กำลังบันทึก…" : "บันทึกการเปลี่ยนแปลง"}</button></header>
       <section className="sheet-layout">
         <aside className="sheet-identity">
-          <div className="sheet-avatar"><CharacterAvatar appearance={appearance} characterClass={character.characterClass} name={character.name} race={character.race} /></div>
+          <div className="sheet-avatar"><CharacterAvatar appearance={appearance} characterClass={character.characterClass} customPortraitUrl={portraitPreview||undefined} name={character.name} race={character.race} /></div>
           <small>LEVEL {character.level} · {selectedClass?.role}</small>
           <h1>{character.name}</h1>
           <p>{race?.label} · {selectedClass?.label}</p>
@@ -130,7 +167,7 @@ export function CharacterSheet({ character, wallet, statuses, innate }: { charac
         </aside>
 
         <div className="sheet-main">
-          <section className="sheet-panel portrait-studio"><div className="sheet-section-title"><div><small>PORTRAIT STUDIO</small><h2>ตราประจำตำนาน</h2></div><p>ใช้ร่วมกันบน Character Sheet, Lobby, World Map และ VTT</p></div>{(["portraitBackdrop","portraitFrame","portraitSigil"]as const).map(key=><div className="portrait-choice" key={key}><b>{key==="portraitBackdrop"?"ฉากหลัง":key==="portraitFrame"?"กรอบ":"ตราประจำตัว"}</b><span>{APPEARANCE_OPTIONS[key].map(option=><button className={(appearance[key]??(key==="portraitBackdrop"?"forest":key==="portraitFrame"?"gold":"class"))===option.id?"selected":""} key={option.id} onClick={()=>{setAppearance(current=>({...current,[key]:option.id}));setStatus("idle")}}>{option.label}</button>)}</span></div>)}</section>
+          <section className="sheet-panel portrait-studio"><div className="sheet-section-title"><div><small>PORTRAIT STUDIO</small><h2>รูปประจำตัวละคร</h2></div><p>ใช้ร่วมกันบน Character Sheet, Lobby, World Map และ VTT</p></div><div className="portrait-upload-panel"><div><b>{portraitPreview?"พร้อมอัปโหลด":appearance.customPortraitPath?"กำลังใช้รูปของคุณ":"อัปโหลดรูปจากเครื่อง"}</b><span>JPG, PNG หรือ WebP · สูงสุด 5 MB · แนะนำภาพแนวตั้ง 3:4</span></div><label className="portrait-file-button">เลือกรูป<input accept="image/jpeg,image/png,image/webp" disabled={portraitBusy} onChange={event=>choosePortrait(event.target.files?.[0]??null)} type="file"/></label>{portraitFile&&<button className="portrait-confirm" disabled={portraitBusy} onClick={uploadPortrait}>{portraitBusy?"กำลังอัปโหลด…":"ยืนยันใช้รูปนี้"}</button>}{(appearance.customPortraitPath||portraitPreview)&&<button className="portrait-remove" disabled={portraitBusy} onClick={portraitPreview?()=>{setPortraitFile(null);setPortraitPreview("");setPortraitMessage("")}:removePortrait}>{portraitPreview?"ยกเลิก":"กลับไปใช้ภาพที่ระบบสร้าง"}</button>}</div>{portraitMessage&&<p className="portrait-message" aria-live="polite">{portraitMessage}</p>}{!appearance.customPortraitPath&&!portraitPreview&&(["portraitBackdrop","portraitFrame","portraitSigil"]as const).map(key=><div className="portrait-choice" key={key}><b>{key==="portraitBackdrop"?"ฉากหลัง":key==="portraitFrame"?"กรอบ":"ตราประจำตัว"}</b><span>{APPEARANCE_OPTIONS[key].map(option=><button className={(appearance[key]??(key==="portraitBackdrop"?"forest":key==="portraitFrame"?"gold":"class"))===option.id?"selected":""} key={option.id} onClick={()=>{setAppearance(current=>({...current,[key]:option.id}));setStatus("idle")}}>{option.label}</button>)}</span></div>)}</section>
           <section className="sheet-panel">
             <div className="sheet-section-title"><div><small>ABILITIES</small><h2>ค่าสถานะ</h2></div><p>ปรับได้ 1–30 · modifier คำนวณอัตโนมัติ</p></div>
             <div className="sheet-stats">{STAT_KEYS.map((key) => <article key={key}><span>{STAT_LABELS[key].short}</span><small>{STAT_LABELS[key].label}</small><strong>{stats[key]}</strong><em>{signed(abilityModifier(stats[key]))}</em><div><button onClick={() => changeStat(key, -1)} disabled={stats[key] <= 1}>−</button><button onClick={() => changeStat(key, 1)} disabled={stats[key] >= 30}>+</button></div></article>)}</div>

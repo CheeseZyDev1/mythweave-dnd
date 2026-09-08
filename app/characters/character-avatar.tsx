@@ -1,8 +1,14 @@
 import { APPEARANCE_OPTIONS, CLASSES, type Appearance } from "../../lib/characters/catalog";
 
-type Props = { appearance: Appearance; race: string; characterClass: string; name?: string };
+type Props = { appearance: Appearance; race: string; characterClass: string; name?: string; customPortraitUrl?: string };
 
-export function CharacterAvatar({ appearance, race, characterClass, name = "ตัวละคร" }: Props) {
+export function CharacterAvatar({ appearance, race, characterClass, name = "ตัวละคร", customPortraitUrl }: Props) {
+  const storageUrl=process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/$/,"");
+  const storedPortraitUrl=appearance.customPortraitPath&&storageUrl
+    ? `${storageUrl}/storage/v1/object/public/character-portraits/${appearance.customPortraitPath.split("/").map(encodeURIComponent).join("/")}`
+    : undefined;
+  const portraitUrl=customPortraitUrl??storedPortraitUrl;
+  if(portraitUrl)return <img alt={`ภาพตัวละคร ${name}`} className="character-avatar custom-character-portrait" src={portraitUrl}/>;
   const skin = APPEARANCE_OPTIONS.skinTone.find((item) => item.id === appearance.skinTone)?.color ?? "#c88f69";
   const hair = APPEARANCE_OPTIONS.hairColor.find((item) => item.id === appearance.hairColor)?.color ?? "#171c1c";
   const classInfo = CLASSES.find((item) => item.id === characterClass) ?? CLASSES[0];

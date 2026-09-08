@@ -85,6 +85,7 @@ export type Appearance = {
   portraitBackdrop?: (typeof APPEARANCE_OPTIONS.portraitBackdrop)[number]["id"];
   portraitFrame?: (typeof APPEARANCE_OPTIONS.portraitFrame)[number]["id"];
   portraitSigil?: (typeof APPEARANCE_OPTIONS.portraitSigil)[number]["id"];
+  customPortraitPath?: string;
 };
 
 export const DEFAULT_STATS: Stats = { strength: 8, dexterity: 8, constitution: 8, intelligence: 8, wisdom: 8, charisma: 8 };

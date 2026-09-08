@@ -39,5 +39,7 @@ export function isValidAppearance(value: unknown): value is Appearance {
     body: ["slim", "balanced", "broad"],
   };
   const optional={portraitBackdrop:["forest","ember","astral","royal"],portraitFrame:["gold","thorn","arcane"],portraitSigil:["class","moon","flame","leaf","crown"]};
-  return Object.entries(allowed).every(([key, values]) => values.includes(String(appearance[key])))&&Object.entries(optional).every(([key,values])=>appearance[key]===undefined||values.includes(String(appearance[key])));
+  const portraitPath=appearance.customPortraitPath;
+  const validPortraitPath=portraitPath===undefined||(typeof portraitPath==="string"&&/^[0-9a-f-]{36}\/[0-9a-f-]{36}\/[0-9a-f-]{36}\.(?:jpg|png|webp)$/.test(portraitPath));
+  return Object.entries(allowed).every(([key, values]) => values.includes(String(appearance[key])))&&Object.entries(optional).every(([key,values])=>appearance[key]===undefined||values.includes(String(appearance[key])))&&validPortraitPath;
 }

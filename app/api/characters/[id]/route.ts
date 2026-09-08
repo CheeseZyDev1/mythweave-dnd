@@ -22,6 +22,9 @@ export async function PATCH(request: Request, context: Context) {
   if (!isValidSheetStats(body.stats)) return NextResponse.json({ error: "invalid_stats" }, { status: 400 });
   if (!isValidInventory(body.inventory)) return NextResponse.json({ error: "invalid_inventory" }, { status: 400 });
   if (body.appearance !== undefined && !isValidAppearance(body.appearance)) return NextResponse.json({ error: "invalid_appearance" }, { status: 400 });
+  if (body.appearance?.customPortraitPath && !body.appearance.customPortraitPath.startsWith(`${user.id}/${id}/`)) {
+    return NextResponse.json({ error: "invalid_appearance" }, { status: 400 });
+  }
 
   const { data, error } = await supabase.from("characters").update({
     hp_current: hpCurrent,
