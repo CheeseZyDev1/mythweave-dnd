@@ -1,0 +1,2 @@
+create or replace function public.prevent_character_dimension_change()returns trigger language plpgsql security definer set search_path=''as $$begin if new.dimension_id<>old.dimension_id and auth.role()<>'service_role'then raise exception'dimension immutable';end if;return new;end;$$;
+create trigger characters_dimension_immutable before update of dimension_id on public.characters for each row execute function public.prevent_character_dimension_change();
