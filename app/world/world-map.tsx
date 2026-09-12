@@ -42,7 +42,7 @@ type Journey = {
 type Weather = { slug: string; name_th: string; description_th: string; symbol: string; travel_note_th: string; intensity: number; period_index: number; next_change_in_hours: number };
 type VillageEvent = { id: string; title_th: string; description_th: string; event_type: string; reward_copper: number; status: string; world_day: number; location_id: number };
 type WorldControlEvent = { id: string; action_type: string; title_th: string; description_th: string; location_id: number | null; expires_at: string };
-type Discovery = { id: string; location_id: number; title_th: string; description_th: string; category: string; rarity: string; discovered_at: string; is_new?: boolean };
+type Discovery = { id: string; location_id: number; title_th: string; description_th: string; category: string; rarity: string; discovered_at: string; is_new?: boolean;loot?:{item_name:string;rarity:string;roll:number;rates:{common:number;uncommon:number;rare:number}}|null };
 const typeLabels: Record<string, string> = {
   major_city: "เมืองใหญ่",
   small_town: "หมู่บ้าน",
@@ -174,8 +174,8 @@ export function WorldMap({
         setMessage("การเดินทางถูกขัดจังหวะ · ต้องจัดการเหตุการณ์ก่อนไปต่อ");
       } else {
         setCurrentId(result.travel.location_id);
-        if(result.discovery)setDiscoveries(current=>[result.discovery,...current.filter(item=>item.id!==result.discovery.id)]);
-        setMessage(`เดินทางถึง ${result.travel.location_name} · ใช้เวลา ${result.travel.duration_hours} ชั่วโมง · เสบียง ${result.travel.food_cost}${result.discovery?` · ค้นพบ: ${result.discovery.title_th}`:""}`);
+        if(result.discovery)setDiscoveries(current=>[{...result.discovery,loot:result.loot},...current.filter(item=>item.id!==result.discovery.id)]);
+        setMessage(`เดินทางถึง ${result.travel.location_name} · ใช้เวลา ${result.travel.duration_hours} ชั่วโมง · เสบียง ${result.travel.food_cost}${result.discovery?` · ค้นพบ: ${result.discovery.title_th}`:""}${result.loot?` · ได้รับ ${result.loot.item_name} (${result.loot.rarity})`:""}`);
       }
     } catch (caught) {
       setMessage(caught instanceof Error ? caught.message : "เดินทางไม่สำเร็จ");
@@ -199,7 +199,7 @@ export function WorldMap({
       setSelectedId(result.travel.location_id);
       setWorldHours(result.travel.world_hours_elapsed);
       await refreshWorldContext();
-      if(result.discovery)setDiscoveries(current=>[result.discovery,...current.filter(item=>item.id!==result.discovery.id)]);
+      if(result.discovery)setDiscoveries(current=>[{...result.discovery,loot:result.loot},...current.filter(item=>item.id!==result.discovery.id)]);
       setJourney(null);
       setMessage(`ผ่านเหตุการณ์และเดินทางถึง ${result.travel.location_name} แล้ว`);
     } catch (caught) {
@@ -262,7 +262,7 @@ export function WorldMap({
       {activeWorldEvent && <section className={`world-control-banner ${activeWorldEvent.action_type}`}><small>GOD MODE · {activeWorldEvent.action_type.toUpperCase()}</small><b>{activeWorldEvent.title_th}</b><span>{activeWorldEvent.description_th}</span></section>}
       {villageEvent && <section className={`village-event ${villageEvent.status}`}><small>VILLAGE EVENT · DAY {villageEvent.world_day} · {villageEvent.event_type}</small><h3>{villageEvent.title_th}</h3><p>{villageEvent.description_th}</p>{villageEvent.status === "active" ? <div><button onClick={() => resolveVillageEvent("participate")}>เข้าร่วม · +{villageEvent.reward_copper} CP</button><button onClick={() => resolveVillageEvent("ignore")}>ผ่านไป</button></div> : <b>เหตุการณ์สิ้นสุดแล้ว</b>}</section>}
       {message && <p className="world-message">{message}</p>}
-      {discoveries.length>0&&<section className={`world-discovery ${discoveries[0].rarity}`}><small>UNEXPECTED DISCOVERY · {discoveries[0].category.toUpperCase()}</small><h3>{discoveries[0].title_th}</h3><p>{discoveries[0].description_th}</p><details><summary>บันทึกสิ่งแปลกที่เคยพบ · {discoveries.length}</summary>{discoveries.map(discovery=><article key={discovery.id}><b>{discovery.title_th}</b><span>{locations.find(location=>location.id===discovery.location_id)?.name_th??"ดินแดนไร้นาม"}</span></article>)}</details></section>}
+      {discoveries.length>0&&<section className={`world-discovery ${discoveries[0].rarity}`}><small>UNEXPECTED DISCOVERY · {discoveries[0].category.toUpperCase()}</small><h3>{discoveries[0].title_th}</h3><p>{discoveries[0].description_th}</p>{discoveries[0].loot&&<div className="discovery-loot"><b>LOOT · {discoveries[0].loot.item_name}</b><span>{discoveries[0].loot.rarity} · roll {discoveries[0].loot.roll}/100</span></div>}<details><summary>บันทึกสิ่งแปลกที่เคยพบ · {discoveries.length}</summary>{discoveries.map(discovery=><article key={discovery.id}><b>{discovery.title_th}</b><span>{locations.find(location=>location.id===discovery.location_id)?.name_th??"ดินแดนไร้นาม"}</span></article>)}</details></section>}
       <section className="map-scroll" aria-label="แผนที่เส้นทางแบบจุดต่อจุด">
       <div className="interactive-map">
         <img alt="แผนที่ทวีปเอเธอร์รา" src="/assets/worldmap.png" />
@@ -310,6 +310,7 @@ export function WorldMap({
             <h2>{selected.name_th}</h2>
             <b>{selected.name_en}</b>
             <p>{selected.description_th}</p>
+            <div className="local-drop-rates">DROP RATE · Common {100-Math.min(15,3+selected.danger_level)-Math.min(35,20+selected.danger_level*2)}% · Uncommon {Math.min(35,20+selected.danger_level*2)}% · Rare {Math.min(15,3+selected.danger_level)}%</div>
             {selected.id === current?.id ? (
               <span className="location-current">คุณอยู่ที่นี่</span>
             ) : travelOptions.length ? (

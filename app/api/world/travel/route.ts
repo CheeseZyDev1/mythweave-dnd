@@ -32,6 +32,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: code }, { status: ["solo_wilderness_only", "already_there", "journey_active", "unavailable", "insufficient_food", "insufficient_funds"].includes(code) ? 409 : code === "not_found" ? 404 : 500 });
   }
   let discovery=null;
-  if(!data.interrupted&&Number.isInteger(Number(data.location_id))){const{data:found}=await supabase.rpc("discover_world_location",{target_character_id:characterId,target_location_id:Number(data.location_id)});discovery=found??null;}
-  return NextResponse.json({ travel: data,discovery });
+  let loot=null;
+  if(!data.interrupted&&Number.isInteger(Number(data.location_id))){const{data:found}=await supabase.rpc("discover_world_location",{target_character_id:characterId,target_location_id:Number(data.location_id)});discovery=found??null;if(discovery){const{data:dropped}=await supabase.rpc("roll_exploration_loot",{target_character_id:characterId,target_location_id:Number(data.location_id)});loot=dropped??null;}}
+  return NextResponse.json({ travel: data,discovery,loot });
 }
