@@ -34,6 +34,7 @@ import "./session-recaps.css";
 import "./room-undo.css";
 import "./dice-history.css";
 import "./portrait-studio.css";
+import "./skills.css";
 import "./theme-controller.css";
 import { ThemeController } from "./theme-controller";
 import "./sound-controller.css";

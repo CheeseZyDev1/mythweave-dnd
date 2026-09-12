@@ -15,6 +15,7 @@ import { DiceTable } from "./dice-table";
 import type{MessengerDispatch}from"./party-awareness";
 import type { RoomHomunculus, RoomHomunculusCommand } from "./homunculus-room-panel";
 import type{WorldBoss,WorldBossContribution}from"../../lib/combat/world-boss";
+import type{CharacterSkill,SkillUse}from"../../lib/skills/types";
 
 export const metadata: Metadata = { title: "Realtime Dice — Mythweave" };
 
@@ -26,11 +27,13 @@ export default async function DicePage({ searchParams }: Props) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/auth");
-  const{data:activeSolo}=await supabase.from("solo_adventures").select("character_id").eq("status","active").maybeSingle();
+  const[{data:activeSolo},{data:ownedCharacters},{data:activeBoss}]=await Promise.all([
+    supabase.from("solo_adventures").select("character_id").eq("status","active").maybeSingle(),
+    supabase.from("characters").select("id,name").order("created_at",{ascending:false}),
+    supabase.from("world_bosses").select("*").eq("status","active").order("starts_at",{ascending:false}).limit(1).maybeSingle(),
+  ]);
   let ghostMode=false;
   if(activeSolo){const{data:life}=await supabase.from("solo_life_states").select("status").eq("character_id",activeSolo.character_id).maybeSingle();ghostMode=life?.status==="dead";if(!ghostMode)redirect(`/solo?character=${activeSolo.character_id}`);}
-  const{data:ownedCharacters}=await supabase.from("characters").select("id,name").order("created_at",{ascending:false});
-  const{data:activeBoss}=await supabase.from("world_bosses").select("*").eq("status","active").order("starts_at",{ascending:false}).limit(1).maybeSingle();
 
   const { table: tableId } = await searchParams;
   let table: { id: string; code: string } | null = null;
@@ -47,6 +50,7 @@ export default async function DicePage({ searchParams }: Props) {
   let monsters: GeneratedMonster[] = [];
   let companions: RoomHomunculus[] = [];
   let companionCommands: RoomHomunculusCommand[] = [];
+  let characterSkills:CharacterSkill[]=[];let skillUses:SkillUse[]=[];
   const worldBoss=(activeBoss as WorldBoss|null)??null;let worldBossContributions:WorldBossContribution[]=[];
   if (tableId) {
     const { data } = await supabase
@@ -65,7 +69,7 @@ export default async function DicePage({ searchParams }: Props) {
         { data: saveData },
         { data: npcData },
         { data: narrationData },
-        { data: monsterData },{data:companionData},{data:companionCommandData},
+        { data: monsterData },{data:companionData},{data:companionCommandData},{data:skillUseData},
       ] = await Promise.all([
         supabase
           .from("dice_rolls")
@@ -100,11 +104,12 @@ export default async function DicePage({ searchParams }: Props) {
         supabase.from("generated_monsters").select("*").eq("table_id",table.id).order("created_at",{ascending:false}).limit(12),
         supabase.from("homunculus_companions").select("id,user_id,character_id,name,stance,hp_current,hp_max,guard_points,active_table_id").eq("active_table_id",table.id),
         supabase.from("homunculus_commands").select("id,companion_id,command,response_th,created_at").eq("table_id",table.id).order("created_at",{ascending:false}).limit(20),
+        supabase.from("skill_uses").select("*").eq("table_id",table.id).order("created_at",{ascending:false}).limit(20),
       ]);
       rolls = (rollData ?? []).reverse() as DiceRoll[];
       members = memberData ?? [];
       const ownCharacterId=members.find(member=>member.user_id===user.id)?.character_id;
-      if(ownCharacterId){const[{data:awarenessData},{data:birdStack},{data:dispatchData}]=await Promise.all([supabase.rpc("get_party_awareness",{target_table_id:table.id,viewer_character_id:ownCharacterId}),supabase.from("character_item_stacks").select("quantity,content_items!inner(slug)").eq("character_id",ownCharacterId).eq("content_items.slug","messenger-raven").maybeSingle(),supabase.from("messenger_dispatches").select("*").eq("table_id",table.id).order("created_at",{ascending:false}).limit(12)]);awareness=awarenessData??[];messengerBirds=birdStack?.quantity??0;messengerDispatches=(dispatchData??[])as MessengerDispatch[];}
+      if(ownCharacterId){const[{data:awarenessData},{data:birdStack},{data:dispatchData},{data:skillData}]=await Promise.all([supabase.rpc("get_party_awareness",{target_table_id:table.id,viewer_character_id:ownCharacterId}),supabase.from("character_item_stacks").select("quantity,content_items!inner(slug)").eq("character_id",ownCharacterId).eq("content_items.slug","messenger-raven").maybeSingle(),supabase.from("messenger_dispatches").select("*").eq("table_id",table.id).order("created_at",{ascending:false}).limit(12),supabase.rpc("get_character_room_skills",{target_table_id:table.id,target_character_id:ownCharacterId})]);awareness=awarenessData??[];messengerBirds=birdStack?.quantity??0;messengerDispatches=(dispatchData??[])as MessengerDispatch[];characterSkills=(skillData??[])as CharacterSkill[];}
       initiativeEntries = (entryData ?? []) as InitiativeEntry[];
       initiativeTracker = trackerData as InitiativeTracker | null;
       messages = ((messageData ?? []) as RoomMessage[]).reverse();
@@ -113,6 +118,7 @@ export default async function DicePage({ searchParams }: Props) {
       narrations = ((narrationData ?? []) as DmNarration[]).reverse();
       monsters = (monsterData ?? []) as GeneratedMonster[];
       companions=(companionData??[])as RoomHomunculus[];companionCommands=(companionCommandData??[])as RoomHomunculusCommand[];
+      skillUses=((skillUseData??[])as SkillUse[]).reverse();
       if(worldBoss){const{data:contributionData}=await supabase.from("world_boss_contributions").select("*").eq("boss_id",worldBoss.id).eq("table_id",table.id).order("created_at",{ascending:false}).limit(12);worldBossContributions=(contributionData??[])as WorldBossContribution[];}
     }
   }
@@ -140,6 +146,8 @@ export default async function DicePage({ searchParams }: Props) {
       initialMessengerDispatches={messengerDispatches}
       initialWorldBoss={worldBoss}
       initialWorldBossContributions={worldBossContributions}
+      initialSkills={characterSkills}
+      initialSkillUses={skillUses}
     />
   );
 }

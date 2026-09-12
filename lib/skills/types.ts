@@ -1,0 +1,2 @@
+export type CharacterSkill={id:number;slug:string;name_th:string;description_th:string;action_type:"action"|"bonus"|"reaction";effect_type:"damage"|"heal"|"buff"|"utility";dice_count:number;dice_sides:number|null;modifier_stat:string|null;max_uses:number;recharge:"at_will"|"short_rest"|"long_rest";required_level:number;uses_remaining:number|null};
+export type SkillUse={id:string;table_id:string;character_id:string;user_id:string;skill_id:number;character_name:string;skill_name:string;effect_type:string;roll_total:number|null;effect_summary:string;created_at:string};

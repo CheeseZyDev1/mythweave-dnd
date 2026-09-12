@@ -25,6 +25,7 @@ import {HomunculusRoomPanel,type RoomHomunculus,type RoomHomunculusCommand}from"
 import { MonsterForge } from "./monster-forge";
 import {PartyAwareness,type AwarenessMember,type MessengerDispatch}from"./party-awareness";
 import{WorldBossPanel}from"./world-boss-panel";import type{WorldBoss,WorldBossContribution}from"../../lib/combat/world-boss";
+import{SkillPanel}from"./skill-panel";import type{CharacterSkill,SkillUse}from"../../lib/skills/types";
 
 type TableInfo = { id: string; code: string };
 type Member = { user_id: string; display_name: string; role: string;character_id:string|null };
@@ -73,6 +74,7 @@ export function DiceTable({
   ghostMode,
   characters,initialAwareness,initialMessengerBirds,initialMessengerDispatches,
   initialWorldBoss,initialWorldBossContributions,
+  initialSkills,initialSkillUses,
 }: {
   initialTable: TableInfo | null;
   initialRolls: DiceRoll[];
@@ -90,6 +92,7 @@ export function DiceTable({
   ghostMode:boolean;
   characters:{id:string;name:string}[];initialAwareness:AwarenessMember[];initialMessengerBirds:number;initialMessengerDispatches:MessengerDispatch[];
   initialWorldBoss:WorldBoss|null;initialWorldBossContributions:WorldBossContribution[];
+  initialSkills:CharacterSkill[];initialSkillUses:SkillUse[];
 }) {
   const router = useRouter();
   const [table] = useState(initialTable);
@@ -385,6 +388,7 @@ export function DiceTable({
             initialTracker={initialInitiativeTracker}
             readOnly={readOnly}
           />
+          <SkillPanel tableId={table.id} characterId={ownMember?.character_id??null} isDm={ownMember?.role==="dm"} readOnly={readOnly} initialSkills={initialSkills} initialUses={initialSkillUses}/>
           <section className="dice-history">
             <header>
               <div>

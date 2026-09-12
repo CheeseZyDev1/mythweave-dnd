@@ -9,13 +9,15 @@ export async function POST(request: Request) {
   const action = String(body?.action ?? "");
   const displayName = String(user.user_metadata?.display_name ?? user.email?.split("@")[0] ?? "Adventurer").trim().slice(0, 40);
   const requestedCharacterId=String(body?.characterId??"");
-  const{data:ownedCharacters}=await supabase.from("characters").select("id,dimension_id").order("created_at",{ascending:false});
-  const{data:lifeProfiles}=await supabase.from("character_life_profiles").select("character_id,status");
+  const[{data:ownedCharacters},{data:lifeProfiles},{data:activeSolo}]=await Promise.all([
+    supabase.from("characters").select("id,dimension_id").order("created_at",{ascending:false}),
+    supabase.from("character_life_profiles").select("character_id,status"),
+    supabase.from("solo_adventures").select("character_id").eq("status","active").maybeSingle(),
+  ]);
   const aliveIds=new Set(lifeProfiles?.filter(profile=>profile.status==="alive").map(profile=>profile.character_id)??[]);
   const requestedOwned=ownedCharacters?.some(character=>character.id===requestedCharacterId)??false;
   if(requestedCharacterId&&requestedOwned&&!aliveIds.has(requestedCharacterId))return NextResponse.json({error:"character_unavailable"},{status:409});
   let characterId=requestedOwned?requestedCharacterId:ownedCharacters?.find(character=>aliveIds.has(character.id))?.id??null;
-  const {data:activeSolo}=await supabase.from("solo_adventures").select("character_id").eq("status","active").maybeSingle();
   let isGhost=false;
   if(activeSolo){const{data:life}=await supabase.from("solo_life_states").select("status").eq("character_id",activeSolo.character_id).maybeSingle();isGhost=life?.status==="dead";if(isGhost)characterId=activeSolo.character_id;}
 
@@ -23,7 +25,7 @@ export async function POST(request: Request) {
     if(activeSolo)return NextResponse.json({error:"solo_mode_active"},{status:409});
     if(!characterId)return NextResponse.json({error:"character_required"},{status:409});
     const { data, error } = await supabase.rpc("create_dimension_dice_table", { member_name: displayName,target_character_id:characterId }).single<{ table_id: string; table_code: string }>();
-    if (error || !data) return NextResponse.json({ error: "create_failed" }, { status: 500 });
+    if (error || !data){const detail=error?.message??"";const errorCode=detail.includes("character unavailable")?"character_unavailable":detail.includes("solo mode forbids rooms")?"solo_mode_active":"create_failed";return NextResponse.json({error:errorCode},{status:errorCode==="create_failed"?500:409});}
     return NextResponse.json({ tableId: data.table_id, code: data.table_code, characterId,dimensionId:ownedCharacters?.find(item=>item.id===characterId)?.dimension_id }, { status: 201 });
   }
 
