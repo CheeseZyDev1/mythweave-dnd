@@ -16,10 +16,13 @@ import type{MessengerDispatch}from"./party-awareness";
 import type { RoomHomunculus, RoomHomunculusCommand } from "./homunculus-room-panel";
 import type{WorldBoss,WorldBossContribution}from"../../lib/combat/world-boss";
 import type{CharacterSkill,SkillUse}from"../../lib/skills/types";
+import type{Appearance}from"../../lib/characters/catalog";
+import type{Fighter}from"./battle-stage";
 
 export const metadata: Metadata = { title: "Realtime Dice — Mythweave" };
 
 type Props = { searchParams: Promise<{ table?: string }> };
+type BattleMemberRow={user_id:string;display_name:string;role:string;character_id:string|null;character_name:string|null;race:string|null;character_class:string|null;appearance:Appearance|null;hp_current:number|null;hp_max:number|null};
 
 export default async function DicePage({ searchParams }: Props) {
   const supabase = await createClient();
@@ -38,7 +41,7 @@ export default async function DicePage({ searchParams }: Props) {
   const { table: tableId } = await searchParams;
   let table: { id: string; code: string } | null = null;
   let rolls: DiceRoll[] = [];
-  let members: { user_id: string; display_name: string; role: string;character_id:string|null }[] = [];
+  let members:Fighter[] = [];
   let awareness:{user_id:string;display_name:string;role:string;character_id:string|null;character_name:string|null;location_id:number|null;location_name:string|null;awareness_tier:string}[]=[];
   let messengerBirds=0;let messengerDispatches:MessengerDispatch[]=[];
   let initiativeEntries: InitiativeEntry[] = [];
@@ -78,11 +81,7 @@ export default async function DicePage({ searchParams }: Props) {
           .eq("table_id", table.id)
           .order("created_at", { ascending: false })
           .limit(30),
-        supabase
-          .from("dice_table_members")
-          .select("user_id,display_name,role,character_id")
-          .eq("table_id", table.id)
-          .order("joined_at"),
+        supabase.rpc("get_room_battle_members",{target_table_id:table.id}),
         supabase
           .from("initiative_entries")
           .select("*")
@@ -109,7 +108,7 @@ export default async function DicePage({ searchParams }: Props) {
         supabase.from("session_recaps").select("id",{count:"exact",head:true}).eq("table_id",table.id),
       ]);
       rolls = (rollData ?? []).reverse() as DiceRoll[];
-      members = memberData ?? [];
+      members = ((memberData??[])as BattleMemberRow[]).map(member=>({user_id:member.user_id,display_name:member.display_name,role:member.role,character_id:member.character_id,character:member.character_id?{name:member.character_name??member.display_name,race:member.race??"human",character_class:member.character_class??"fighter",appearance:member.appearance??{}as Appearance,hp_current:member.hp_current??0,hp_max:member.hp_max??1}:null}));
       const ownCharacterId=members.find(member=>member.user_id===user.id)?.character_id;
       if(ownCharacterId){const[{data:awarenessData},{data:birdStack},{data:dispatchData},{data:skillData}]=await Promise.all([supabase.rpc("get_party_awareness",{target_table_id:table.id,viewer_character_id:ownCharacterId}),supabase.from("character_item_stacks").select("quantity,content_items!inner(slug)").eq("character_id",ownCharacterId).eq("content_items.slug","messenger-raven").maybeSingle(),supabase.from("messenger_dispatches").select("*").eq("table_id",table.id).order("created_at",{ascending:false}).limit(12),supabase.rpc("get_character_room_skills",{target_table_id:table.id,target_character_id:ownCharacterId})]);awareness=awarenessData??[];messengerBirds=birdStack?.quantity??0;messengerDispatches=(dispatchData??[])as MessengerDispatch[];characterSkills=(skillData??[])as CharacterSkill[];}
       initiativeEntries = (entryData ?? []) as InitiativeEntry[];

@@ -26,9 +26,10 @@ import { MonsterForge } from "./monster-forge";
 import {PartyAwareness,type AwarenessMember,type MessengerDispatch}from"./party-awareness";
 import{WorldBossPanel}from"./world-boss-panel";import type{WorldBoss,WorldBossContribution}from"../../lib/combat/world-boss";
 import{SkillPanel}from"./skill-panel";import type{CharacterSkill,SkillUse}from"../../lib/skills/types";
+import{BattleStage,type Fighter}from"./battle-stage";
 
 type TableInfo = { id: string; code: string };
-type Member = { user_id: string; display_name: string; role: string;character_id:string|null };
+type Member = Fighter;
 
 const tableErrors: Record<string, string> = {
   invalid_code: "รูปแบบรหัสไม่ถูกต้อง",
@@ -365,6 +366,7 @@ export function DiceTable({
           </div>
         </aside>
         <div className="dice-board">
+          <BattleStage tableId={table.id} members={members} initialMonsters={initialMonsters} initialSkills={initialSkillUses} initialTurn={initialInitiativeEntries.find(entry=>entry.id===initialInitiativeTracker?.current_entry_id)?.name}/>
           <section className="dice-stage">
             <div className={`animated-die ${rolling ? "rolling" : ""}`}>
               <span>{animatedRoll?.total ?? "?"}</span>

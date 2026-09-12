@@ -36,6 +36,7 @@ import "./room-undo.css";
 import "./dice-history.css";
 import "./portrait-studio.css";
 import "./skills.css";
+import "./battle-stage.css";
 import "./creator-complete.css";
 import "./readability.css";
 import "./theme-controller.css";
