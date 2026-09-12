@@ -50,6 +50,13 @@ const typeLabels: Record<string, string> = {
   wilderness: "พื้นที่ป่า",
 };
 
+function ancestorId(locations:Location[],locationId:number,type:"continent"|"kingdom"){
+  const byId=new Map(locations.map(location=>[location.id,location]));
+  let current=byId.get(locationId);const visited=new Set<number>();
+  while(current&&!visited.has(current.id)){if(current.location_type===type)return current.id;visited.add(current.id);current=current.parent_id?byId.get(current.parent_id):undefined;}
+  return null;
+}
+
 export function WorldMap({
   character,
   locations,
@@ -79,13 +86,15 @@ export function WorldMap({
   initialDiscoveries: Discovery[];
   initialJourney: Journey | null;
 }) {
-  const points = useMemo(
-    () =>
-      locations.filter(
-        (location) => location.map_x !== null && location.map_y !== null,
-      ),
-    [locations],
-  );
+  const continents=useMemo(()=>locations.filter(location=>location.location_type==="continent"),[locations]);
+  const initialContinentId=ancestorId(locations,initialLocationId,"continent")??continents[0]?.id??0;
+  const initialKingdomId=ancestorId(locations,initialLocationId,"kingdom")??locations.find(location=>location.location_type==="kingdom"&&location.parent_id===initialContinentId)?.id??0;
+  const[continentId,setContinentId]=useState(initialContinentId);
+  const[kingdomId,setKingdomId]=useState(initialKingdomId);
+  const kingdoms=useMemo(()=>locations.filter(location=>location.location_type==="kingdom"&&location.parent_id===continentId),[continentId,locations]);
+  const activeContinent=continents.find(location=>location.id===continentId);
+  const activeKingdom=locations.find(location=>location.id===kingdomId);
+  const points = useMemo(()=>locations.filter(location=>location.map_x!==null&&location.map_y!==null&&ancestorId(locations,location.id,"kingdom")===kingdomId),[kingdomId,locations]);
   const [currentId, setCurrentId] = useState(initialLocationId);
   const [selectedId, setSelectedId] = useState(initialLocationId);
   const [worldHours, setWorldHours] = useState(initialWorldHours);
@@ -102,9 +111,11 @@ export function WorldMap({
   const activeWorldEvent = worldEvents.find((event) => new Date(event.expires_at).getTime() > Date.now() && event.location_id === currentId) ?? worldEvents.find((event) => new Date(event.expires_at).getTime() > Date.now() && event.location_id === null);
   const reachableIds = useMemo(() => new Set(routes.flatMap(route => route.from_location_id === currentId ? [route.to_location_id] : route.to_location_id === currentId ? [route.from_location_id] : [])), [currentId, routes]);
   const routeSegments = useMemo(() => {
+    const pointIds=new Set(points.map(point=>point.id));
     const grouped = new Map<string, Route>();
     const priority: Record<Route["travel_mode"], number> = { foot: 1, carriage: 2, griffin: 3, fast_travel: 4 };
     for (const route of routes) {
+      if(!pointIds.has(route.from_location_id)||!pointIds.has(route.to_location_id))continue;
       const key = [route.from_location_id, route.to_location_id].sort((a, b) => a - b).join("-");
       const previous = grouped.get(key);
       if (!previous || priority[route.travel_mode] < priority[previous.travel_mode]) grouped.set(key, route);
@@ -116,7 +127,10 @@ export function WorldMap({
       const bend = ((route.from_location_id + route.to_location_id) % 2 ? 1 : -1) * 3.2;
       return [{ route, from, to, path: `M ${from.map_x} ${from.map_y} Q ${(from.map_x + to.map_x) / 2 + bend} ${(from.map_y + to.map_y) / 2 - bend} ${to.map_x} ${to.map_y}` }];
     });
-  }, [locations, routes]);
+  }, [locations, points, routes]);
+
+  function chooseContinent(nextId:number){const firstKingdom=locations.find(location=>location.location_type==="kingdom"&&location.parent_id===nextId);setContinentId(nextId);if(firstKingdom){setKingdomId(firstKingdom.id);const firstPoint=locations.find(location=>location.map_x!==null&&ancestorId(locations,location.id,"kingdom")===firstKingdom.id);if(firstPoint)setSelectedId(firstPoint.id);}}
+  function chooseKingdom(nextId:number){setKingdomId(nextId);const firstPoint=locations.find(location=>location.map_x!==null&&ancestorId(locations,location.id,"kingdom")===nextId);if(firstPoint)setSelectedId(firstPoint.id);}
 
   useEffect(() => {
     const supabase = createClient();
@@ -239,15 +253,15 @@ export function WorldMap({
       )}
       <header>
         <Link href={`/characters/${character.id}`}>← Character Sheet</Link>
-        <span>MYTHWEAVE · AETHERRA</span>
+        <span>MYTHWEAVE · {activeContinent?.name_en??"WORLD ATLAS"}</span>
         <i>{character.name}</i>
       </header>
       <section className="world-heading">
         <div>
-          <small>ONE CONTINENT · FOUR HORIZONS</small>
-          <h1>แผนที่เอเธอร์รา</h1>
+          <small>SIX CONTINENTS · OPEN WORLD ATLAS</small>
+          <h1>{activeContinent?.name_th??"แผนที่โลก"}</h1>
           <p>
-            {points.length} จุดสำรวจ · {routeSegments.length} เส้นทาง · เลือกเดินได้หลายสาย
+            {continents.length} ทวีป · {locations.filter(location=>location.location_type==="kingdom").length} อาณาจักร · เขตนี้มี {points.length} จุดสำรวจ
           </p>
         </div>
         <div>
@@ -258,6 +272,7 @@ export function WorldMap({
           <span>เวลาโลกสะสม {worldHours} ชั่วโมง</span>
         </div>
       </section>
+      <nav className="world-atlas-nav" aria-label="เลือกทวีปและอาณาจักร"><div><small>CONTINENT</small>{continents.map(continent=><button className={continent.id===continentId?"selected":""}onClick={()=>chooseContinent(continent.id)}key={continent.id}><b>{continent.name_th}</b><span>{locations.filter(location=>location.location_type==="kingdom"&&location.parent_id===continent.id).length} อาณาจักร</span></button>)}</div><div><small>KINGDOM · {activeContinent?.name_th}</small>{kingdoms.map(kingdom=><button className={kingdom.id===kingdomId?"selected":""}onClick={()=>chooseKingdom(kingdom.id)}key={kingdom.id}><b>{kingdom.name_th}</b><span>{locations.filter(location=>location.location_type==="major_city"&&location.parent_id===kingdom.id).length} เมือง</span></button>)}</div><footer><b>{activeKingdom?.name_th}</b><span>{activeKingdom?.description_th}</span></footer></nav>
       <section className="weather-panel"><b>{weather.symbol} {weather.name_th}</b><span>{weather.description_th}</span><small>ระดับ {weather.intensity}/3 · เปลี่ยนในอีก {weather.next_change_in_hours} ชม.</small><i>{weather.travel_note_th}</i></section>
       {activeWorldEvent && <section className={`world-control-banner ${activeWorldEvent.action_type}`}><small>GOD MODE · {activeWorldEvent.action_type.toUpperCase()}</small><b>{activeWorldEvent.title_th}</b><span>{activeWorldEvent.description_th}</span></section>}
       {villageEvent && <section className={`village-event ${villageEvent.status}`}><small>VILLAGE EVENT · DAY {villageEvent.world_day} · {villageEvent.event_type}</small><h3>{villageEvent.title_th}</h3><p>{villageEvent.description_th}</p>{villageEvent.status === "active" ? <div><button onClick={() => resolveVillageEvent("participate")}>เข้าร่วม · +{villageEvent.reward_copper} CP</button><button onClick={() => resolveVillageEvent("ignore")}>ผ่านไป</button></div> : <b>เหตุการณ์สิ้นสุดแล้ว</b>}</section>}
@@ -265,7 +280,7 @@ export function WorldMap({
       {discoveries.length>0&&<section className={`world-discovery ${discoveries[0].rarity}`}><small>UNEXPECTED DISCOVERY · {discoveries[0].category.toUpperCase()}</small><h3>{discoveries[0].title_th}</h3><p>{discoveries[0].description_th}</p>{discoveries[0].loot&&<div className="discovery-loot"><b>LOOT · {discoveries[0].loot.item_name}</b><span>{discoveries[0].loot.rarity} · roll {discoveries[0].loot.roll}/100</span></div>}<details><summary>บันทึกสิ่งแปลกที่เคยพบ · {discoveries.length}</summary>{discoveries.map(discovery=><article key={discovery.id}><b>{discovery.title_th}</b><span>{locations.find(location=>location.id===discovery.location_id)?.name_th??"ดินแดนไร้นาม"}</span></article>)}</details></section>}
       <section className="map-scroll" aria-label="แผนที่เส้นทางแบบจุดต่อจุด">
       <div className="interactive-map">
-        <img alt="แผนที่ทวีปเอเธอร์รา" src="/assets/worldmap.png" />
+        <img alt={`แผนที่${activeKingdom?.name_th??"โลก"}`} src="/assets/worldmap.png" />
         <svg className="route-network" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
           {routeSegments.map(({route,path}) => <path className={`${route.travel_mode} ${route.from_location_id === currentId || route.to_location_id === currentId ? "reachable" : ""}`} d={path} vectorEffect="non-scaling-stroke" key={`${route.from_location_id}-${route.to_location_id}`} />)}
         </svg>

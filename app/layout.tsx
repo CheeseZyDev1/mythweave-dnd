@@ -12,6 +12,7 @@ import "./forge.css";
 import "./monster-forge.css";
 import "./world.css";
 import "./world-routes.css";
+import "./world-atlas.css";
 import "./fast-travel.css";
 import "./vehicle-travel.css";
 import "./race-lore.css";
