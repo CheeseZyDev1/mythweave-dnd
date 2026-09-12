@@ -47,6 +47,7 @@ import "./readability.css";
 import "./theme-controller.css";
 import { ThemeController } from "./theme-controller";
 import "./sound-controller.css";
+import "./dice-effects.css";
 import { SoundController } from "./sound-controller";
 import "./motion-experience.css";
 import "./new-player-systems.css";
@@ -60,10 +61,18 @@ export const metadata: Metadata = {
   description: "ออกผจญภัยในโลกแฟนตาซีพร้อมเพื่อนจากทุกที่",
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default function RootLayout({
+  children,
+}: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="th">
-      <body className={`${cinzel.variable} ${thai.variable} selection:bg-amber-200 selection:text-emerald-950`}><MotionExperience>{children}</MotionExperience><ThemeController /><SoundController /></body>
+      <body
+        className={`${cinzel.variable} ${thai.variable} selection:bg-amber-200 selection:text-emerald-950`}
+      >
+        <MotionExperience>{children}</MotionExperience>
+        <ThemeController />
+        <SoundController />
+      </body>
     </html>
   );
 }

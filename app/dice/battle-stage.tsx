@@ -1,12 +1,320 @@
 "use client";
-import{AnimatePresence,motion}from"framer-motion";import{useEffect,useMemo,useRef,useState}from"react";import type{Appearance}from"../../lib/characters/catalog";import type{GeneratedMonster}from"../../lib/monsters/types";import type{SkillUse}from"../../lib/skills/types";import{createClient}from"../../lib/supabase/client";import{CharacterAvatar}from"../characters/character-avatar";
-export type Fighter={user_id:string;display_name:string;role:string;character_id:string|null;character:{name:string;race:string;character_class:string;appearance:Appearance;hp_current:number;hp_max:number}|null};
-type CombatHit={id:string;character_id:string;monster_id:string;character_name:string;applied_damage:number;grade:string|null;status:string;created_at:string};
-type Flash={id:string;kind:"attack"|"skill";actorId:string|null;targetId:string|null;label:string;amount:number|null;effect:string};
-export function BattleStage({tableId,members,initialMonsters,initialSkills,initialTurn}:{tableId:string;members:Fighter[];initialMonsters:GeneratedMonster[];initialSkills:SkillUse[];initialTurn?:string}){
- const[monsters,setMonsters]=useState(initialMonsters);const[flash,setFlash]=useState<Flash|null>(null);const[turn,setTurn]=useState(initialTurn?`เทิร์นของ ${initialTurn}`:"กำลังเตรียมการต่อสู้");const seen=useRef(new Set<string>());const party=useMemo(()=>members.filter(member=>member.role!=="spectator"&&member.character),[members]);const active=monsters.some(monster=>monster.hp_current>0);
- useEffect(()=>{const supabase=createClient();let timer:number|undefined;const show=(next:Flash)=>{if(seen.current.has(next.id))return;seen.current.add(next.id);setFlash(next);window.clearTimeout(timer);timer=window.setTimeout(()=>setFlash(null),1100)};const channel=supabase.channel(`battle-stage-${tableId}`).on("postgres_changes",{event:"*",schema:"public",table:"generated_monsters",filter:`table_id=eq.${tableId}`},payload=>{const incoming=(payload.new??payload.old)as GeneratedMonster;if(!incoming?.id)return;if(payload.eventType==="DELETE")setMonsters(current=>current.filter(item=>item.id!==incoming.id));else setMonsters(current=>[incoming,...current.filter(item=>item.id!==incoming.id)].slice(0,8))}).on("postgres_changes",{event:"*",schema:"public",table:"timed_combat_actions",filter:`table_id=eq.${tableId}`},payload=>{const hit=payload.new as CombatHit;if(hit?.status==="resolved"){show({id:`attack-${hit.id}`,kind:"attack",actorId:hit.character_id,targetId:hit.monster_id,label:(hit.grade??"HIT").toUpperCase(),amount:hit.applied_damage,effect:"damage"});window.dispatchEvent(new Event("mythweave:dice-sfx"))}}).on("postgres_changes",{event:"INSERT",schema:"public",table:"skill_uses",filter:`table_id=eq.${tableId}`},payload=>{const skill=payload.new as SkillUse;if(!skill?.id)return;show({id:`skill-${skill.id}`,kind:"skill",actorId:skill.character_id,targetId:null,label:skill.skill_name,amount:skill.roll_total,effect:skill.effect_type})}).on("postgres_changes",{event:"*",schema:"public",table:"initiative_trackers",filter:`table_id=eq.${tableId}`},async payload=>{const tracker=payload.new as{current_entry_id:string|null;active:boolean};if(!tracker?.active||!tracker.current_entry_id)return setTurn("การต่อสู้สิ้นสุด");const{data}=await supabase.from("initiative_entries").select("name").eq("id",tracker.current_entry_id).maybeSingle();setTurn(data?.name?`เทิร์นของ ${data.name}`:"กำลังเปลี่ยนเทิร์น")}).subscribe();return()=>{window.clearTimeout(timer);void supabase.removeChannel(channel)}},[tableId]);
- useEffect(()=>{if(initialTurn)return;const latest=initialSkills.at(-1);if(latest)setTurn(`ล่าสุด · ${latest.character_name} ใช้ ${latest.skill_name}`)},[initialSkills,initialTurn]);
- if(!active&&monsters.length===0)return null;
- return <section className={`battle-stage ${flash?`fx-${flash.effect}`:""}`} aria-label="ฉากต่อสู้แบบแบ่งฝั่ง"><header><small>SIDE BATTLE · REALTIME</small><strong>{turn}</strong><span>เลือกโจมตีหรือสกิลจากแผงคำสั่งด้านล่าง</span></header><div className="battle-field"><div className="battle-side party-side"><b>PARTY</b>{party.map((member,index)=><motion.article animate={flash?.actorId===member.character_id?{x:[0,flash.kind==="attack"?70:8,0],scale:[1,1.08,1]}:{x:0}} transition={{duration:.62,ease:"easeInOut"}} className={flash?.actorId===member.character_id?"acting":""} style={{"--fighter-index":index}as React.CSSProperties} key={member.user_id}><div className="battle-avatar"><CharacterAvatar appearance={member.character!.appearance} race={member.character!.race} characterClass={member.character!.character_class} name={member.character!.name}/></div><span><strong>{member.character!.name}</strong><i>{member.character!.hp_current}/{member.character!.hp_max} HP</i></span>{flash?.actorId===member.character_id&&flash.kind==="skill"&&<em className="cast-ring"/>}</motion.article>)}</div><div className="battle-center"><AnimatePresence mode="wait">{flash&&<motion.div className={`battle-callout ${flash.kind}`} initial={{opacity:0,scale:.4,y:20}} animate={{opacity:1,scale:1,y:0}} exit={{opacity:0,scale:1.5}} key={flash.id}><b>{flash.label}</b>{flash.amount!==null&&<span>{flash.amount}</span>}</motion.div>}</AnimatePresence><i>VS</i></div><div className="battle-side enemy-side"><b>ENEMIES</b>{monsters.map((monster,index)=><motion.article animate={flash?.targetId===monster.id?{x:[0,18,-14,8,0],rotate:[0,3,-3,1,0],filter:["brightness(1)","brightness(3)","brightness(.7)","brightness(1)"]}:{x:0}} transition={{duration:.5}} className={`${monster.challenge_tier} ${monster.hp_current<1?"defeated":""}`} style={{"--fighter-index":index}as React.CSSProperties} key={monster.id}><div className="enemy-silhouette"><i/><b>{monster.name_th.slice(0,1)}</b></div><span><strong>{monster.name_th}</strong><i>{monster.hp_current}/{monster.hp_max} HP</i><em><u style={{width:`${Math.max(0,monster.hp_current/monster.hp_max*100)}%`}}/></em></span>{flash?.targetId===monster.id&&<motion.div className="damage-number" initial={{opacity:0,y:15}} animate={{opacity:1,y:-35}}>{flash.amount}</motion.div>}</motion.article>)}</div><div className="battle-ground"/></div></section>;
+import { AnimatePresence, motion } from "framer-motion";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { Appearance } from "../../lib/characters/catalog";
+import type { GeneratedMonster } from "../../lib/monsters/types";
+import type { SkillUse } from "../../lib/skills/types";
+import { createClient } from "../../lib/supabase/client";
+import { CharacterAvatar } from "../characters/character-avatar";
+export type Fighter = {
+  user_id: string;
+  display_name: string;
+  role: string;
+  character_id: string | null;
+  character: {
+    name: string;
+    race: string;
+    character_class: string;
+    appearance: Appearance;
+    hp_current: number;
+    hp_max: number;
+  } | null;
+};
+type CombatHit = {
+  id: string;
+  character_id: string;
+  monster_id: string;
+  character_name: string;
+  applied_damage: number;
+  grade: string | null;
+  status: string;
+  created_at: string;
+};
+type Flash = {
+  id: string;
+  kind: "attack" | "skill";
+  actorId: string | null;
+  targetId: string | null;
+  label: string;
+  amount: number | null;
+  effect: string;
+};
+
+function effectEmoji(effect: string) {
+  if (effect === "damage") return "⚔️";
+  if (effect === "heal") return "💚";
+  if (effect === "buff") return "✨";
+  if (effect === "debuff") return "⚠️";
+  return "🌀";
+}
+export function BattleStage({
+  tableId,
+  members,
+  initialMonsters,
+  initialSkills,
+  initialTurn,
+}: {
+  tableId: string;
+  members: Fighter[];
+  initialMonsters: GeneratedMonster[];
+  initialSkills: SkillUse[];
+  initialTurn?: string;
+}) {
+  const [monsters, setMonsters] = useState(initialMonsters);
+  const [flash, setFlash] = useState<Flash | null>(null);
+  const [turn, setTurn] = useState(
+    initialTurn ? `เทิร์นของ ${initialTurn}` : "กำลังเตรียมการต่อสู้",
+  );
+  const seen = useRef(new Set<string>());
+  const party = useMemo(
+    () =>
+      members.filter(
+        (member) => member.role !== "spectator" && member.character,
+      ),
+    [members],
+  );
+  const active = monsters.some((monster) => monster.hp_current > 0);
+  useEffect(() => {
+    const supabase = createClient();
+    let timer: number | undefined;
+    const show = (next: Flash) => {
+      if (seen.current.has(next.id)) return;
+      seen.current.add(next.id);
+      setFlash(next);
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => setFlash(null), 1100);
+    };
+    const channel = supabase
+      .channel(`battle-stage-${tableId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "generated_monsters",
+          filter: `table_id=eq.${tableId}`,
+        },
+        (payload) => {
+          const incoming = (payload.new ?? payload.old) as GeneratedMonster;
+          if (!incoming?.id) return;
+          if (payload.eventType === "DELETE")
+            setMonsters((current) =>
+              current.filter((item) => item.id !== incoming.id),
+            );
+          else
+            setMonsters((current) =>
+              [
+                incoming,
+                ...current.filter((item) => item.id !== incoming.id),
+              ].slice(0, 8),
+            );
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "timed_combat_actions",
+          filter: `table_id=eq.${tableId}`,
+        },
+        (payload) => {
+          const hit = payload.new as CombatHit;
+          if (hit?.status === "resolved") {
+            show({
+              id: `attack-${hit.id}`,
+              kind: "attack",
+              actorId: hit.character_id,
+              targetId: hit.monster_id,
+              label: (hit.grade ?? "HIT").toUpperCase(),
+              amount: hit.applied_damage,
+              effect: "damage",
+            });
+            window.dispatchEvent(new Event("mythweave:dice-sfx"));
+          }
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "skill_uses",
+          filter: `table_id=eq.${tableId}`,
+        },
+        (payload) => {
+          const skill = payload.new as SkillUse;
+          if (!skill?.id) return;
+          show({
+            id: `skill-${skill.id}`,
+            kind: "skill",
+            actorId: skill.character_id,
+            targetId: null,
+            label: skill.skill_name,
+            amount: skill.roll_total,
+            effect: skill.effect_type,
+          });
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "initiative_trackers",
+          filter: `table_id=eq.${tableId}`,
+        },
+        async (payload) => {
+          const tracker = payload.new as {
+            current_entry_id: string | null;
+            active: boolean;
+          };
+          if (!tracker?.active || !tracker.current_entry_id)
+            return setTurn("การต่อสู้สิ้นสุด");
+          const { data } = await supabase
+            .from("initiative_entries")
+            .select("name")
+            .eq("id", tracker.current_entry_id)
+            .maybeSingle();
+          setTurn(data?.name ? `เทิร์นของ ${data.name}` : "กำลังเปลี่ยนเทิร์น");
+        },
+      )
+      .subscribe();
+    return () => {
+      window.clearTimeout(timer);
+      void supabase.removeChannel(channel);
+    };
+  }, [tableId]);
+  useEffect(() => {
+    if (initialTurn) return;
+    const latest = initialSkills.at(-1);
+    if (latest)
+      setTurn(`ล่าสุด · ${latest.character_name} ใช้ ${latest.skill_name}`);
+  }, [initialSkills, initialTurn]);
+  if (!active && monsters.length === 0) return null;
+  return (
+    <section
+      className={`battle-stage ${flash ? `fx-${flash.effect}` : ""}`}
+      aria-label="ฉากต่อสู้แบบแบ่งฝั่ง"
+    >
+      <header>
+        <small>SIDE BATTLE · REALTIME</small>
+        <strong>{turn}</strong>
+        <span>เลือกโจมตีหรือสกิลจากแผงคำสั่งด้านล่าง</span>
+      </header>
+      <div className="battle-field">
+        <div className="battle-side party-side">
+          <b>PARTY</b>
+          {party.map((member, index) => (
+            <motion.article
+              animate={
+                flash?.actorId === member.character_id
+                  ? {
+                      x: [0, flash.kind === "attack" ? 70 : 8, 0],
+                      scale: [1, 1.08, 1],
+                    }
+                  : { x: 0 }
+              }
+              transition={{ duration: 0.62, ease: "easeInOut" }}
+              className={flash?.actorId === member.character_id ? "acting" : ""}
+              style={{ "--fighter-index": index } as React.CSSProperties}
+              key={member.user_id}
+            >
+              <div className="battle-avatar">
+                <CharacterAvatar
+                  appearance={member.character!.appearance}
+                  race={member.character!.race}
+                  characterClass={member.character!.character_class}
+                  name={member.character!.name}
+                />
+              </div>
+              <span>
+                <strong>{member.character!.name}</strong>
+                <i>
+                  {member.character!.hp_current}/{member.character!.hp_max} HP
+                </i>
+              </span>
+              {flash?.actorId === member.character_id &&
+                flash.kind === "skill" && <em className="cast-ring" />}
+            </motion.article>
+          ))}
+        </div>
+        <div className="battle-center">
+          <AnimatePresence mode="wait">
+            {flash && (
+              <motion.div
+                className={`battle-callout ${flash.kind}`}
+                initial={{ opacity: 0, scale: 0.4, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 1.5 }}
+                key={flash.id}
+              >
+                <b>
+                  {effectEmoji(flash.effect)} {flash.label}
+                </b>
+                {flash.amount !== null && <span>{flash.amount}</span>}
+              </motion.div>
+            )}
+          </AnimatePresence>
+          <i>VS</i>
+        </div>
+        <div className="battle-side enemy-side">
+          <b>ENEMIES</b>
+          {monsters.map((monster, index) => (
+            <motion.article
+              animate={
+                flash?.targetId === monster.id
+                  ? {
+                      x: [0, 18, -14, 8, 0],
+                      rotate: [0, 3, -3, 1, 0],
+                      filter: [
+                        "brightness(1)",
+                        "brightness(3)",
+                        "brightness(.7)",
+                        "brightness(1)",
+                      ],
+                    }
+                  : { x: 0 }
+              }
+              transition={{ duration: 0.5 }}
+              className={`${monster.challenge_tier} ${monster.hp_current < 1 ? "defeated" : ""}`}
+              style={{ "--fighter-index": index } as React.CSSProperties}
+              key={monster.id}
+            >
+              <div className="enemy-silhouette">
+                <i />
+                <b>{monster.name_th.slice(0, 1)}</b>
+              </div>
+              <span>
+                <strong>
+                  {monster.hp_current < 1 ? "☠️ " : ""}
+                  {monster.name_th}
+                </strong>
+                <i>
+                  {monster.hp_current}/{monster.hp_max} HP
+                </i>
+                <em>
+                  <u
+                    style={{
+                      width: `${Math.max(0, (monster.hp_current / monster.hp_max) * 100)}%`,
+                    }}
+                  />
+                </em>
+              </span>
+              {flash?.targetId === monster.id && (
+                <motion.div
+                  className="damage-number"
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: -35 }}
+                >
+                  {flash.amount}
+                </motion.div>
+              )}
+            </motion.article>
+          ))}
+        </div>
+        <div className="battle-ground" />
+      </div>
+    </section>
+  );
 }

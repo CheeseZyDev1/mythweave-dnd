@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "../../lib/supabase/client";
 import { DICE_SIDES, type DiceRoll } from "../../lib/dice/types";
 import type {
@@ -20,16 +20,35 @@ import { NpcDialoguePanel } from "./npc-dialogue";
 import type { DmNarration } from "../../lib/dm/types";
 import { ManualDmConsole } from "./manual-dm-console";
 import type { GeneratedMonster } from "../../lib/monsters/types";
-import {HomunculusRoomPanel,type RoomHomunculus,type RoomHomunculusCommand}from"./homunculus-room-panel";
+import {
+  HomunculusRoomPanel,
+  type RoomHomunculus,
+  type RoomHomunculusCommand,
+} from "./homunculus-room-panel";
 import { MonsterForge } from "./monster-forge";
-import {PartyAwareness,type AwarenessMember,type MessengerDispatch}from"./party-awareness";
-import{WorldBossPanel}from"./world-boss-panel";import type{WorldBoss,WorldBossContribution}from"../../lib/combat/world-boss";
-import{SkillPanel}from"./skill-panel";import type{CharacterSkill,SkillUse}from"../../lib/skills/types";
-import{BattleStage,type Fighter}from"./battle-stage";
-import{RoomGateway}from"./room-gateway";
-import{CombatDmPanel}from"./combat-dm-panel";import type{CombatDmMoment}from"../../lib/combat/dm-moments";
+import {
+  PartyAwareness,
+  type AwarenessMember,
+  type MessengerDispatch,
+} from "./party-awareness";
+import { WorldBossPanel } from "./world-boss-panel";
+import type {
+  WorldBoss,
+  WorldBossContribution,
+} from "../../lib/combat/world-boss";
+import { SkillPanel } from "./skill-panel";
+import type { CharacterSkill, SkillUse } from "../../lib/skills/types";
+import { BattleStage, type Fighter } from "./battle-stage";
+import { RoomGateway } from "./room-gateway";
+import { CombatDmPanel } from "./combat-dm-panel";
+import type { CombatDmMoment } from "../../lib/combat/dm-moments";
+import { getRollTier, ROLL_FEEDBACK } from "../../lib/dice/feedback";
 
-type TableInfo = { id: string; code: string;dm_mode:"human"|"subscription"|"api" };
+type TableInfo = {
+  id: string;
+  code: string;
+  dm_mode: "human" | "subscription" | "api";
+};
 type Member = Fighter;
 
 function rollLabel(roll: DiceRoll) {
@@ -55,11 +74,17 @@ export function DiceTable({
   initialNpcHistory,
   initialNarrations,
   initialMonsters,
-  initialCompanions,initialCompanionCommands,
+  initialCompanions,
+  initialCompanionCommands,
   ghostMode,
-  characters,initialAwareness,initialMessengerBirds,initialMessengerDispatches,
-  initialWorldBoss,initialWorldBossContributions,
-  initialSkills,initialSkillUses,
+  characters,
+  initialAwareness,
+  initialMessengerBirds,
+  initialMessengerDispatches,
+  initialWorldBoss,
+  initialWorldBossContributions,
+  initialSkills,
+  initialSkillUses,
   hasSessionRecaps,
   initialCombatDmMoments,
 }: {
@@ -75,13 +100,19 @@ export function DiceTable({
   initialNpcHistory: NpcDialogue[];
   initialNarrations: DmNarration[];
   initialMonsters: GeneratedMonster[];
-  initialCompanions:RoomHomunculus[];initialCompanionCommands:RoomHomunculusCommand[];
-  ghostMode:boolean;
-  characters:{id:string;name:string}[];initialAwareness:AwarenessMember[];initialMessengerBirds:number;initialMessengerDispatches:MessengerDispatch[];
-  initialWorldBoss:WorldBoss|null;initialWorldBossContributions:WorldBossContribution[];
-  initialSkills:CharacterSkill[];initialSkillUses:SkillUse[];
-  hasSessionRecaps:boolean;
-  initialCombatDmMoments:CombatDmMoment[];
+  initialCompanions: RoomHomunculus[];
+  initialCompanionCommands: RoomHomunculusCommand[];
+  ghostMode: boolean;
+  characters: { id: string; name: string }[];
+  initialAwareness: AwarenessMember[];
+  initialMessengerBirds: number;
+  initialMessengerDispatches: MessengerDispatch[];
+  initialWorldBoss: WorldBoss | null;
+  initialWorldBossContributions: WorldBossContribution[];
+  initialSkills: CharacterSkill[];
+  initialSkillUses: SkillUse[];
+  hasSessionRecaps: boolean;
+  initialCombatDmMoments: CombatDmMoment[];
 }) {
   const [table] = useState(initialTable);
   const [rolls, setRolls] = useState(initialRolls);
@@ -89,18 +120,32 @@ export function DiceTable({
   const [diceSides, setDiceSides] = useState(20);
   const [modifier, setModifier] = useState(0);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState(
-    "",
-  );
+  const [error, setError] = useState("");
   const [animatedRoll, setAnimatedRoll] = useState<DiceRoll | null>(
     initialRolls.at(-1) ?? null,
   );
   const [rolling, setRolling] = useState(false);
+  const announcedRolls = useRef(new Set<string>());
+  const rollTimer = useRef<number | undefined>(undefined);
   const latest = rolls.at(-1) ?? null;
   const ownMember = members.find((member) => member.user_id === currentUserId);
-  const readOnly=ownMember?.role==="spectator";
-  const isDm=ownMember?.role==="dm";
-  const isActor=ownMember?.role==="dm"||ownMember?.role==="player";
+  const readOnly = ownMember?.role === "spectator";
+  const isDm = ownMember?.role === "dm";
+  const isActor = ownMember?.role === "dm" || ownMember?.role === "player";
+
+  const announceRoll = useCallback((incoming: DiceRoll) => {
+    if (announcedRolls.current.has(incoming.id)) return;
+    announcedRolls.current.add(incoming.id);
+    setAnimatedRoll(incoming);
+    setRolling(true);
+    window.dispatchEvent(
+      new CustomEvent("mythweave:dice-sfx", {
+        detail: { tier: getRollTier(incoming) },
+      }),
+    );
+    window.clearTimeout(rollTimer.current);
+    rollTimer.current = window.setTimeout(() => setRolling(false), 1050);
+  }, []);
 
   useEffect(() => {
     if (!table) return;
@@ -122,17 +167,15 @@ export function DiceTable({
               ? current
               : [...current.slice(-49), incoming],
           );
-          setAnimatedRoll(incoming);
-          setRolling(true);
-          window.dispatchEvent(new Event("mythweave:dice-sfx"));
-          window.setTimeout(() => setRolling(false), 720);
+          announceRoll(incoming);
         },
       )
       .subscribe();
     return () => {
+      window.clearTimeout(rollTimer.current);
       void supabase.removeChannel(channel);
     };
-  }, [table]);
+  }, [announceRoll, table]);
 
   const average = useMemo(
     () =>
@@ -174,8 +217,7 @@ export function DiceTable({
           ? current
           : [...current.slice(-49), incoming],
       );
-      setAnimatedRoll(incoming);
-      window.setTimeout(() => setRolling(false), 720);
+      announceRoll(incoming);
     } catch (caught) {
       setRolling(false);
       setError(caught instanceof Error ? caught.message : "ทอยเต๋าไม่สำเร็จ");
@@ -189,18 +231,36 @@ export function DiceTable({
     await navigator.clipboard.writeText(table.code);
   }
 
-  if (!table)return <RoomGateway characters={characters}ghostMode={ghostMode}invalidTable={invalidTable}/>;
+  const animatedTier = animatedRoll ? getRollTier(animatedRoll) : "neutral";
+  const animatedFeedback = ROLL_FEEDBACK[animatedTier];
+
+  if (!table)
+    return (
+      <RoomGateway
+        characters={characters}
+        ghostMode={ghostMode}
+        invalidTable={invalidTable}
+      />
+    );
 
   return (
     <main className="dice-shell">
       <header className="dice-topbar">
         <Link href="/lobby">← กลับล็อบบี้</Link>
-        <span>MYTHWEAVE · REALTIME DICE · <Link href={`/vtt?table=${table.id}`}>VTT MAP</Link> · <Link href={`/dice/history?table=${table.id}`}>ROLL HISTORY</Link></span>
+        <span>
+          MYTHWEAVE · REALTIME DICE ·{" "}
+          <Link href={`/vtt?table=${table.id}`}>VTT MAP</Link> ·{" "}
+          <Link href={`/dice/history?table=${table.id}`}>ROLL HISTORY</Link>
+        </span>
         <button onClick={copyCode}>คัดลอกรหัส {table.code}</button>
       </header>
       <section className="dice-layout">
         <aside className="dice-controls">
-          {readOnly&&<div className="ghost-mode-banner">{ghostMode?"GHOST MODE":"SPECTATOR"} · READ ONLY</div>}
+          {readOnly && (
+            <div className="ghost-mode-banner">
+              {ghostMode ? "GHOST MODE" : "SPECTATOR"} · READ ONLY
+            </div>
+          )}
           <small>ROLL CONFIGURATION</small>
           <h1>ลูกเต๋าแห่งชะตา</h1>
           <p>ผู้ทอย: {ownMember?.display_name ?? "Adventurer"}</p>
@@ -250,7 +310,7 @@ export function DiceTable({
           <button
             className="dice-roll-button"
             onClick={rollDice}
-            disabled={busy||readOnly}
+            disabled={busy || readOnly}
           >
             {busy ? "กำลังทอย…" : `ทอย ${diceCount}d${diceSides}`}
           </button>
@@ -266,11 +326,42 @@ export function DiceTable({
           </div>
         </aside>
         <div className="dice-board">
-          <BattleStage tableId={table.id} members={members} initialMonsters={initialMonsters} initialSkills={initialSkillUses} initialTurn={initialInitiativeEntries.find(entry=>entry.id===initialInitiativeTracker?.current_entry_id)?.name}/>
-          <CombatDmPanel tableId={table.id} isDm={isDm} initialMoments={initialCombatDmMoments}/>
+          <BattleStage
+            tableId={table.id}
+            members={members}
+            initialMonsters={initialMonsters}
+            initialSkills={initialSkillUses}
+            initialTurn={
+              initialInitiativeEntries.find(
+                (entry) =>
+                  entry.id === initialInitiativeTracker?.current_entry_id,
+              )?.name
+            }
+          />
+          <CombatDmPanel
+            tableId={table.id}
+            isDm={isDm}
+            initialMoments={initialCombatDmMoments}
+          />
           <section className="dice-stage">
-            <div className={`animated-die ${rolling ? "rolling" : ""}`}>
-              <span>{animatedRoll?.total ?? "?"}</span>
+            <div
+              className={`dice-cast ${animatedTier} ${rolling ? "rolling" : "settled"}`}
+            >
+              <i className="dice-trail" aria-hidden="true" />
+              <div
+                className="animated-die"
+                data-sides={animatedRoll?.dice_sides ?? diceSides}
+              >
+                <span>{animatedRoll?.total ?? "?"}</span>
+              </div>
+              {animatedRoll && !rolling && (
+                <strong
+                  className="roll-emote"
+                  aria-label={animatedFeedback.label}
+                >
+                  {animatedFeedback.emoji}
+                </strong>
+              )}
             </div>
             <small>
               {animatedRoll ? rollLabel(animatedRoll) : "เลือกเต๋าแล้วเริ่มทอย"}
@@ -281,21 +372,39 @@ export function DiceTable({
                 : "ชะตายังไม่ถูกเปิดเผย"}
             </h2>
             {animatedRoll && (
-              <p>
-                ผลแต่ละลูก: {animatedRoll.rolls.join(" · ")}
-                {animatedRoll.modifier
-                  ? ` · modifier ${animatedRoll.modifier > 0 ? "+" : ""}${animatedRoll.modifier}`
-                  : ""}
-              </p>
+              <>
+                <p className={`roll-verdict ${animatedTier}`}>
+                  {animatedFeedback.emoji} {animatedFeedback.label} ·{" "}
+                  {animatedFeedback.message}
+                </p>
+                <p>
+                  ผลแต่ละลูก: {animatedRoll.rolls.join(" · ")}
+                  {animatedRoll.modifier
+                    ? ` · modifier ${animatedRoll.modifier > 0 ? "+" : ""}${animatedRoll.modifier}`
+                    : ""}
+                </p>
+              </>
             )}
           </section>
-          {(isDm||initialInitiativeEntries.length>0)&&<InitiativePanel
-            tableId={table.id}
-            initialEntries={initialInitiativeEntries}
-            initialTracker={initialInitiativeTracker}
-            readOnly={!isDm}
-          />}
-          {(isActor&&ownMember?.character_id||initialSkillUses.length>0)&&<SkillPanel tableId={table.id} characterId={isActor?ownMember?.character_id??null:null} isDm={isDm} readOnly={!isActor} initialSkills={initialSkills} initialUses={initialSkillUses}/>}
+          {(isDm || initialInitiativeEntries.length > 0) && (
+            <InitiativePanel
+              tableId={table.id}
+              initialEntries={initialInitiativeEntries}
+              initialTracker={initialInitiativeTracker}
+              readOnly={!isDm}
+            />
+          )}
+          {((isActor && ownMember?.character_id) ||
+            initialSkillUses.length > 0) && (
+            <SkillPanel
+              tableId={table.id}
+              characterId={isActor ? (ownMember?.character_id ?? null) : null}
+              isDm={isDm}
+              readOnly={!isActor}
+              initialSkills={initialSkills}
+              initialUses={initialSkillUses}
+            />
+          )}
           <section className="dice-history">
             <header>
               <div>
@@ -310,10 +419,15 @@ export function DiceTable({
               <div>
                 {[...rolls].reverse().map((roll) => (
                   <article
-                    className={roll.id === latest?.id ? "latest" : ""}
+                    className={`${roll.id === latest?.id ? "latest" : ""} tier-${getRollTier(roll)}`}
                     key={roll.id}
                   >
-                    <b>{roll.total}</b>
+                    <b>
+                      <i aria-hidden="true">
+                        {ROLL_FEEDBACK[getRollTier(roll)].emoji}
+                      </i>
+                      {roll.total}
+                    </b>
                     <span>
                       <strong>{roll.roller_name}</strong>
                       <small>
@@ -334,60 +448,100 @@ export function DiceTable({
               <p className="dice-empty">ยังไม่มีผลการทอยในโต๊ะนี้</p>
             )}
           </section>
-          {isActor&&ownMember?.character_id&&<PartyAwareness tableId={table.id} viewerCharacterId={ownMember.character_id} initialMembers={initialAwareness} initialBirds={initialMessengerBirds} initialDispatches={initialMessengerDispatches} canSend/>}
+          {isActor && ownMember?.character_id && (
+            <PartyAwareness
+              tableId={table.id}
+              viewerCharacterId={ownMember.character_id}
+              initialMembers={initialAwareness}
+              initialBirds={initialMessengerBirds}
+              initialDispatches={initialMessengerDispatches}
+              canSend
+            />
+          )}
           <RoomChat
             tableId={table.id}
             currentUserId={currentUserId}
             initialMessages={initialMessages}
             readOnly={readOnly}
           />
-          {(initialCompanions.length>0||initialCompanionCommands.length>0)&&<HomunculusRoomPanel tableId={table.id} currentUserId={currentUserId} readOnly={readOnly} monsters={initialMonsters} initialCompanions={initialCompanions} initialCommands={initialCompanionCommands}/>}
-          {initialWorldBoss&&<WorldBossPanel tableId={table.id} currentUserId={currentUserId} characterId={ownMember?.character_id??null} readOnly={readOnly} isDm={isDm} members={members} initialBoss={initialWorldBoss} initialContributions={initialWorldBossContributions}/>}
-          {(isDm||initialSaves.length>0)&&<RoomSavePanel
-            tableId={table.id}
-            isDm={isDm}
-            initialSaves={initialSaves}
-          />}
-          {(isDm||hasSessionRecaps)&&<SessionRecapPanel tableId={table.id} isDm={isDm} />}
-          {isDm&&<RoomUndoPanel tableId={table.id} isDm />}
-          {(isDm||initialNpcHistory.length>0)&&<NpcDialoguePanel
-            tableId={table.id}
-            initialHistory={initialNpcHistory}
-            readOnly={!isDm}
-          />}
-          {(isDm||initialMonsters.length>0)&&<MonsterForge
-            tableId={table.id}
-            isDm={isDm}
-            initialMonsters={initialMonsters}
-            currentUserId={currentUserId}
-            characterId={ownMember?.character_id??null}
-            canAttack={!readOnly}
-          />}
-          {(isDm||initialNarrations.length>0)&&<ManualDmConsole
-            tableId={table.id}
-            isDm={isDm}
-            mode={table.dm_mode}
-            members={members}
-            rollSummary={rolls
-              .slice(-5)
-              .map(
-                (roll) =>
-                  `${roll.roller_name}: ${roll.dice_count}d${roll.dice_sides} = ${roll.total}`,
-              )}
-            turnSummary={
-              initialInitiativeEntries.find(
-                (entry) =>
-                  entry.id === initialInitiativeTracker?.current_entry_id,
-              )?.name ?? ""
-            }
-            chatSummary={initialMessages
-              .slice(-5)
-              .map((item) => `${item.sender_name}: ${item.content}`)}
-            npcSummary={initialNpcHistory
-              .slice(-3)
-              .map((item) => `${item.npc_name}: ${item.text_th}`)}
-            initialNarrations={initialNarrations}
-          />}
+          {(initialCompanions.length > 0 ||
+            initialCompanionCommands.length > 0) && (
+            <HomunculusRoomPanel
+              tableId={table.id}
+              currentUserId={currentUserId}
+              readOnly={readOnly}
+              monsters={initialMonsters}
+              initialCompanions={initialCompanions}
+              initialCommands={initialCompanionCommands}
+            />
+          )}
+          {initialWorldBoss && (
+            <WorldBossPanel
+              tableId={table.id}
+              currentUserId={currentUserId}
+              characterId={ownMember?.character_id ?? null}
+              readOnly={readOnly}
+              isDm={isDm}
+              members={members}
+              initialBoss={initialWorldBoss}
+              initialContributions={initialWorldBossContributions}
+            />
+          )}
+          {(isDm || initialSaves.length > 0) && (
+            <RoomSavePanel
+              tableId={table.id}
+              isDm={isDm}
+              initialSaves={initialSaves}
+            />
+          )}
+          {(isDm || hasSessionRecaps) && (
+            <SessionRecapPanel tableId={table.id} isDm={isDm} />
+          )}
+          {isDm && <RoomUndoPanel tableId={table.id} isDm />}
+          {(isDm || initialNpcHistory.length > 0) && (
+            <NpcDialoguePanel
+              tableId={table.id}
+              initialHistory={initialNpcHistory}
+              readOnly={!isDm}
+            />
+          )}
+          {(isDm || initialMonsters.length > 0) && (
+            <MonsterForge
+              tableId={table.id}
+              isDm={isDm}
+              initialMonsters={initialMonsters}
+              currentUserId={currentUserId}
+              characterId={ownMember?.character_id ?? null}
+              canAttack={!readOnly}
+            />
+          )}
+          {(isDm || initialNarrations.length > 0) && (
+            <ManualDmConsole
+              tableId={table.id}
+              isDm={isDm}
+              mode={table.dm_mode}
+              members={members}
+              rollSummary={rolls
+                .slice(-5)
+                .map(
+                  (roll) =>
+                    `${roll.roller_name}: ${roll.dice_count}d${roll.dice_sides} = ${roll.total}`,
+                )}
+              turnSummary={
+                initialInitiativeEntries.find(
+                  (entry) =>
+                    entry.id === initialInitiativeTracker?.current_entry_id,
+                )?.name ?? ""
+              }
+              chatSummary={initialMessages
+                .slice(-5)
+                .map((item) => `${item.sender_name}: ${item.content}`)}
+              npcSummary={initialNpcHistory
+                .slice(-3)
+                .map((item) => `${item.npc_name}: ${item.text_th}`)}
+              initialNarrations={initialNarrations}
+            />
+          )}
         </div>
       </section>
     </main>
