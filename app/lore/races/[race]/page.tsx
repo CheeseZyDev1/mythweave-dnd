@@ -6,7 +6,7 @@ import { findRace, STAT_LABELS, type StatKey } from "../../../../lib/characters/
 
 export const metadata: Metadata = { title: "Race Chronicle — Mythweave" };
 
-const sceneByRace: Record<string, string> = { human: "/assets/riverrest.png", elf: "/assets/elderwood.png", dwarf: "/assets/azuredeep.png", half_orc: "/assets/nightcrown.png", goblin: "/assets/riverrest.png", fallen: "/assets/nightcrown.png" };
+const sceneByRace: Record<string, string> = { human: "/assets/riverrest.png", elf: "/assets/elderwood.png", dwarf: "/assets/azuredeep.png", half_orc: "/assets/nightcrown.png", goblin: "/assets/riverrest.png", fallen: "/assets/nightcrown.png",halfling:"/assets/riverrest.png",tiefling:"/assets/nightcrown.png",dragonborn:"/assets/nightcrown.png",gnome:"/assets/azuredeep.png",beastkin:"/assets/elderwood.png",triton:"/assets/riverrest.png" };
 
 export default async function RaceLoreDetail({ params, searchParams }: { params: Promise<{ race: string }>; searchParams: Promise<{ character?: string }> }) {
   const supabase = await createClient();

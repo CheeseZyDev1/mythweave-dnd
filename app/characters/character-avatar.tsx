@@ -14,7 +14,7 @@ export function CharacterAvatar({ appearance, race, characterClass, name = "ต�
   const classInfo = CLASSES.find((item) => item.id === characterClass) ?? CLASSES[0];
   const bodyHalf = appearance.body === "slim" ? 55 : appearance.body === "broad" ? 78 : 66;
   const headRx = appearance.face === "round" ? 43 : appearance.face === "sharp" ? 35 : 39;
-  const eyeColor = race === "fallen" ? "#d9bd75" : race === "goblin" ? "#d7c55c" : "#29322f";
+  const eyeColor = race === "fallen" ? "#d9bd75" : race === "goblin" || race === "tiefling" ? "#d7c55c" : race === "triton" ? "#78d5df" : "#29322f";
   const backdrop={forest:["#264f3d","#020806"],ember:["#793d2e","#120705"],astral:["#434676","#08081c"],royal:["#694b24","#120e08"]}[appearance.portraitBackdrop??"forest"];
   const frameColor={gold:"#d9bd75",thorn:"#79a37c",arcane:"#9c92df"}[appearance.portraitFrame??"gold"];
   const sigil={class:classInfo.icon,moon:"☾",flame:"♨",leaf:"❧",crown:"♛"}[appearance.portraitSigil??"class"];
@@ -32,9 +32,13 @@ export function CharacterAvatar({ appearance, race, characterClass, name = "ต�
       <path d={`M${120 - bodyHalf} 300 Q${120 - bodyHalf - 5} 226 83 207 Q120 192 157 207 Q${120 + bodyHalf + 5} 226 ${120 + bodyHalf} 300Z`} fill="url(#avatar-cloak)" stroke="#d9bd75" strokeOpacity=".24" />
       <path d="M93 210 Q120 231 147 210 L158 300 L82 300Z" fill="#0e1815" opacity=".55" />
       <rect x="105" y="174" width="30" height="44" rx="13" fill={skin} />
-      {(race === "elf" || race === "goblin") && <><path d="M82 105 L32 89 Q54 126 87 135Z" fill={skin} stroke="#342b24" strokeOpacity=".45" /><path d="M158 105 L208 89 Q186 126 153 135Z" fill={skin} stroke="#342b24" strokeOpacity=".45" /></>}
+      {(["elf","goblin","halfling","gnome"].includes(race)) && <><path d="M82 105 L32 89 Q54 126 87 135Z" fill={skin} stroke="#342b24" strokeOpacity=".45" /><path d="M158 105 L208 89 Q186 126 153 135Z" fill={skin} stroke="#342b24" strokeOpacity=".45" /></>}
       {race === "half_orc" && <><path d="M83 112 L57 101 L84 137Z" fill={skin} /><path d="M157 112 L183 101 L156 137Z" fill={skin} /></>}
+      {race === "beastkin"&&<><path d="M87 92 L72 54 Q101 67 105 91Z" fill={hair}/><path d="M153 92 L168 54 Q139 67 135 91Z" fill={hair}/></>}
+      {race === "tiefling"&&<><path d="M91 91 Q60 62 79 39 Q78 67 105 81Z" fill="#392827" stroke="#b66a58"/><path d="M149 91 Q180 62 161 39 Q162 67 135 81Z" fill="#392827" stroke="#b66a58"/></>}
+      {race === "triton"&&<><path d="M83 103 L55 71 L70 124Z" fill="#5a9dab" opacity=".85"/><path d="M157 103 L185 71 L170 124Z" fill="#5a9dab" opacity=".85"/></>}
       <ellipse cx="120" cy="126" rx={headRx} ry={appearance.face === "round" ? 49 : 55} fill={skin} stroke="#281f1a" strokeOpacity=".35" />
+      {race === "dragonborn"&&<><path d="M91 96 L78 67 L105 88 M149 96 L162 67 L135 88" fill={skin} stroke="#d5a879" strokeWidth="4"/><path d="M94 143 L108 149 M146 143 L132 149 M104 111 L114 115 M136 111 L126 115" stroke="#6d4d3c" strokeOpacity=".6" strokeWidth="3"/></>}
       <path d="M92 126 Q103 119 112 126" fill="none" stroke="#30261f" strokeWidth="3" strokeLinecap="round" /><path d="M128 126 Q137 119 148 126" fill="none" stroke="#30261f" strokeWidth="3" strokeLinecap="round" />
       <circle cx="103" cy="128" r="3" fill={eyeColor} /><circle cx="137" cy="128" r="3" fill={eyeColor} />
       <path d="M120 130 L116 148 Q120 151 125 148" fill="none" stroke="#49362d" strokeOpacity=".62" strokeWidth="2" />
