@@ -12,7 +12,8 @@
     "test:dice": "node scripts/dice-e2e.mjs",
     "test:skills": "node scripts/skills-e2e.mjs",
     "test:room": "node scripts/room-dm-e2e.mjs",
-    "test:combat-dm": "node scripts/combat-dm-e2e.mjs"
+    "test:combat-dm": "node scripts/combat-dm-e2e.mjs",
+    "test:guest": "node scripts/guest-auth-e2e.mjs"
   },
   "engines": {
     "node": "22.x"

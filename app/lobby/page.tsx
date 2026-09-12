@@ -13,7 +13,8 @@ export default async function LobbyPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/auth");
 
-  const displayName = String(user.user_metadata?.display_name ?? user.email?.split("@")[0] ?? "Adventurer");
+  const isGuest=Boolean(user.is_anonymous);
+  const displayName = String(user.user_metadata?.display_name ?? user.user_metadata?.full_name ?? user.user_metadata?.name ?? user.email?.split("@")[0] ?? "Adventurer");
   const { data: characters } = await supabase.from("characters").select("id,name,race,character_class,level,hp_current,hp_max,appearance").order("created_at", { ascending: false });
 
   return (
@@ -23,7 +24,7 @@ export default async function LobbyPage() {
         <span className="lobby-kicker">ADVENTURER VERIFIED</span>
         <h1>ยินดีต้อนรับ<br />{displayName}</h1>
         <p>{characters?.length ? "เลือกตัวละครที่ต้องการใช้ หรือสร้างตำนานบทใหม่ก่อนเข้าสู่ห้องกับเพื่อน" : "บัญชีของคุณพร้อมแล้ว ขั้นต่อไปคือสร้างตัวละคร เลือกเผ่าและอาชีพ ก่อนเข้าสู่ห้องผจญภัยกับเพื่อน"}</p>
-        <div className="lobby-identity"><small>บัญชีที่กำลังใช้งาน</small><strong>{user.email}</strong></div>
+        <div className={`lobby-identity ${isGuest?"guest":""}`}><small>บัญชีที่กำลังใช้งาน</small><strong>{isGuest?`◇ Guest · ${displayName}`:user.email}</strong>{isGuest&&<span>ข้อมูลผูกกับเบราว์เซอร์นี้ กรุณาอย่าออกจากระบบหรือล้างข้อมูล</span>}</div>
         <div className="lobby-character-heading"><div><small>YOUR ADVENTURERS</small><h2>ตัวละครของคุณ</h2></div><Link href="/characters/new">+ สร้างตัวละคร</Link></div>
         {characters?.length ? <div className="lobby-characters">{characters.map((character) => {
           const race = findRace(character.race);

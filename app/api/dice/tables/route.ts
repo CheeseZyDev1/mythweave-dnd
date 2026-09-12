@@ -7,7 +7,7 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const body = await request.json().catch(() => null);
   const action = String(body?.action ?? "");
-  const displayName = String(user.user_metadata?.display_name ?? user.email?.split("@")[0] ?? "Adventurer").trim().slice(0, 40);
+  const displayName = String(user.user_metadata?.display_name ?? user.user_metadata?.full_name ?? user.user_metadata?.name ?? user.email?.split("@")[0] ?? "Adventurer").trim().slice(0, 40);
   const requestedCharacterId=String(body?.characterId??"");
   const[{data:ownedCharacters},{data:lifeProfiles},{data:activeSolo}]=await Promise.all([
     supabase.from("characters").select("id,dimension_id").order("created_at",{ascending:false}),

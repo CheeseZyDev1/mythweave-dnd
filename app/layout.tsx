@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Cinzel, Noto_Sans_Thai } from "next/font/google";
 import "./tailwind.css";
 import "./globals.css";
+import "./auth-quick.css";
 import "./dm-console.css";
 import "./shop-haggle.css";
 import "./relationships.css";
