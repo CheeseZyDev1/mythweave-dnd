@@ -75,6 +75,7 @@ export function DiceTable({
   characters,initialAwareness,initialMessengerBirds,initialMessengerDispatches,
   initialWorldBoss,initialWorldBossContributions,
   initialSkills,initialSkillUses,
+  hasSessionRecaps,
 }: {
   initialTable: TableInfo | null;
   initialRolls: DiceRoll[];
@@ -93,6 +94,7 @@ export function DiceTable({
   characters:{id:string;name:string}[];initialAwareness:AwarenessMember[];initialMessengerBirds:number;initialMessengerDispatches:MessengerDispatch[];
   initialWorldBoss:WorldBoss|null;initialWorldBossContributions:WorldBossContribution[];
   initialSkills:CharacterSkill[];initialSkillUses:SkillUse[];
+  hasSessionRecaps:boolean;
 }) {
   const router = useRouter();
   const [table] = useState(initialTable);
@@ -114,6 +116,8 @@ export function DiceTable({
   const latest = rolls.at(-1) ?? null;
   const ownMember = members.find((member) => member.user_id === currentUserId);
   const readOnly=ownMember?.role==="spectator";
+  const isDm=ownMember?.role==="dm";
+  const isActor=ownMember?.role==="dm"||ownMember?.role==="player";
 
   useEffect(() => {
     if (!table) return;
@@ -382,13 +386,13 @@ export function DiceTable({
               </p>
             )}
           </section>
-          <InitiativePanel
+          {(isDm||initialInitiativeEntries.length>0)&&<InitiativePanel
             tableId={table.id}
             initialEntries={initialInitiativeEntries}
             initialTracker={initialInitiativeTracker}
-            readOnly={readOnly}
-          />
-          <SkillPanel tableId={table.id} characterId={ownMember?.character_id??null} isDm={ownMember?.role==="dm"} readOnly={readOnly} initialSkills={initialSkills} initialUses={initialSkillUses}/>
+            readOnly={!isDm}
+          />}
+          {(isActor&&ownMember?.character_id||initialSkillUses.length>0)&&<SkillPanel tableId={table.id} characterId={isActor?ownMember?.character_id??null:null} isDm={isDm} readOnly={!isActor} initialSkills={initialSkills} initialUses={initialSkillUses}/>}
           <section className="dice-history">
             <header>
               <div>
@@ -427,38 +431,38 @@ export function DiceTable({
               <p className="dice-empty">ยังไม่มีผลการทอยในโต๊ะนี้</p>
             )}
           </section>
-          {ownMember?.character_id&&<PartyAwareness tableId={table.id} viewerCharacterId={ownMember.character_id} initialMembers={initialAwareness} initialBirds={initialMessengerBirds} initialDispatches={initialMessengerDispatches} canSend={!readOnly}/>}
+          {isActor&&ownMember?.character_id&&<PartyAwareness tableId={table.id} viewerCharacterId={ownMember.character_id} initialMembers={initialAwareness} initialBirds={initialMessengerBirds} initialDispatches={initialMessengerDispatches} canSend/>}
           <RoomChat
             tableId={table.id}
             currentUserId={currentUserId}
             initialMessages={initialMessages}
             readOnly={readOnly}
           />
-          <HomunculusRoomPanel tableId={table.id} currentUserId={currentUserId} readOnly={readOnly} monsters={initialMonsters} initialCompanions={initialCompanions} initialCommands={initialCompanionCommands}/>
-          <WorldBossPanel tableId={table.id} currentUserId={currentUserId} characterId={ownMember?.character_id??null} readOnly={readOnly} isDm={ownMember?.role==="dm"} members={members} initialBoss={initialWorldBoss} initialContributions={initialWorldBossContributions}/>
-          <RoomSavePanel
+          {(initialCompanions.length>0||initialCompanionCommands.length>0)&&<HomunculusRoomPanel tableId={table.id} currentUserId={currentUserId} readOnly={readOnly} monsters={initialMonsters} initialCompanions={initialCompanions} initialCommands={initialCompanionCommands}/>}
+          {initialWorldBoss&&<WorldBossPanel tableId={table.id} currentUserId={currentUserId} characterId={ownMember?.character_id??null} readOnly={readOnly} isDm={isDm} members={members} initialBoss={initialWorldBoss} initialContributions={initialWorldBossContributions}/>}
+          {(isDm||initialSaves.length>0)&&<RoomSavePanel
             tableId={table.id}
-            isDm={ownMember?.role === "dm"}
+            isDm={isDm}
             initialSaves={initialSaves}
-          />
-          <SessionRecapPanel tableId={table.id} isDm={ownMember?.role === "dm"} />
-          <RoomUndoPanel tableId={table.id} isDm={ownMember?.role === "dm"} />
-          <NpcDialoguePanel
+          />}
+          {(isDm||hasSessionRecaps)&&<SessionRecapPanel tableId={table.id} isDm={isDm} />}
+          {isDm&&<RoomUndoPanel tableId={table.id} isDm />}
+          {(isDm||initialNpcHistory.length>0)&&<NpcDialoguePanel
             tableId={table.id}
             initialHistory={initialNpcHistory}
-            readOnly={readOnly}
-          />
-          <MonsterForge
+            readOnly={!isDm}
+          />}
+          {(isDm||initialMonsters.length>0)&&<MonsterForge
             tableId={table.id}
-            isDm={ownMember?.role === "dm"}
+            isDm={isDm}
             initialMonsters={initialMonsters}
             currentUserId={currentUserId}
             characterId={ownMember?.character_id??null}
             canAttack={!readOnly}
-          />
-          <ManualDmConsole
+          />}
+          {(isDm||initialNarrations.length>0)&&<ManualDmConsole
             tableId={table.id}
-            isDm={ownMember?.role === "dm"}
+            isDm={isDm}
             members={members}
             rollSummary={rolls
               .slice(-5)
@@ -479,7 +483,7 @@ export function DiceTable({
               .slice(-3)
               .map((item) => `${item.npc_name}: ${item.text_th}`)}
             initialNarrations={initialNarrations}
-          />
+          />}
         </div>
       </section>
     </main>

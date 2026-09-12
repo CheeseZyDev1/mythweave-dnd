@@ -14,7 +14,7 @@ export async function POST(request: Request) {
 
   const { data: member } = await supabase.from("dice_table_members").select("user_id,role").eq("table_id", tableId).eq("user_id", user.id).maybeSingle();
   if (!member) return NextResponse.json({ error: "not_a_member" }, { status: 403 });
-  if(member.role==="spectator")return NextResponse.json({error:"spectator_read_only"},{status:403});
+  if(member.role!=="dm")return NextResponse.json({error:"dm_required"},{status:403});
 
   if (action === "add") {
     const name = String(body?.name ?? "").trim().replace(/\s+/g, " ").slice(0, 40);
@@ -34,13 +34,13 @@ export async function POST(request: Request) {
   }
 
   if (action === "next") {
-    const { data, error } = await supabase.rpc("advance_initiative", { target_table_id: tableId }).single<{ current_entry: string | null; new_round: number; is_active: boolean }>();
+    const { data, error } = await supabase.rpc("dm_advance_initiative", { target_table_id: tableId }).single<{ current_entry: string | null; new_round: number; is_active: boolean }>();
     if (error || !data) return NextResponse.json({ error: "advance_failed" }, { status: 500 });
     return NextResponse.json({ tracker: { table_id: tableId, current_entry_id: data.current_entry, round_number: data.new_round, active: data.is_active, updated_at: new Date().toISOString() } });
   }
 
   if (action === "reset") {
-    const { error } = await supabase.rpc("reset_initiative", { target_table_id: tableId });
+    const { error } = await supabase.rpc("dm_reset_initiative", { target_table_id: tableId });
     if (error) return NextResponse.json({ error: "reset_failed" }, { status: 500 });
     return NextResponse.json({ reset: true });
   }

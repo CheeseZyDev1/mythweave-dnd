@@ -51,6 +51,7 @@ export default async function DicePage({ searchParams }: Props) {
   let companions: RoomHomunculus[] = [];
   let companionCommands: RoomHomunculusCommand[] = [];
   let characterSkills:CharacterSkill[]=[];let skillUses:SkillUse[]=[];
+  let hasSessionRecaps=false;
   const worldBoss=(activeBoss as WorldBoss|null)??null;let worldBossContributions:WorldBossContribution[]=[];
   if (tableId) {
     const { data } = await supabase
@@ -69,7 +70,7 @@ export default async function DicePage({ searchParams }: Props) {
         { data: saveData },
         { data: npcData },
         { data: narrationData },
-        { data: monsterData },{data:companionData},{data:companionCommandData},{data:skillUseData},
+        { data: monsterData },{data:companionData},{data:companionCommandData},{data:skillUseData},{count:recapCount},
       ] = await Promise.all([
         supabase
           .from("dice_rolls")
@@ -105,6 +106,7 @@ export default async function DicePage({ searchParams }: Props) {
         supabase.from("homunculus_companions").select("id,user_id,character_id,name,stance,hp_current,hp_max,guard_points,active_table_id").eq("active_table_id",table.id),
         supabase.from("homunculus_commands").select("id,companion_id,command,response_th,created_at").eq("table_id",table.id).order("created_at",{ascending:false}).limit(20),
         supabase.from("skill_uses").select("*").eq("table_id",table.id).order("created_at",{ascending:false}).limit(20),
+        supabase.from("session_recaps").select("id",{count:"exact",head:true}).eq("table_id",table.id),
       ]);
       rolls = (rollData ?? []).reverse() as DiceRoll[];
       members = memberData ?? [];
@@ -119,6 +121,7 @@ export default async function DicePage({ searchParams }: Props) {
       monsters = (monsterData ?? []) as GeneratedMonster[];
       companions=(companionData??[])as RoomHomunculus[];companionCommands=(companionCommandData??[])as RoomHomunculusCommand[];
       skillUses=((skillUseData??[])as SkillUse[]).reverse();
+      hasSessionRecaps=(recapCount??0)>0;
       if(worldBoss){const{data:contributionData}=await supabase.from("world_boss_contributions").select("*").eq("boss_id",worldBoss.id).eq("table_id",table.id).order("created_at",{ascending:false}).limit(12);worldBossContributions=(contributionData??[])as WorldBossContribution[];}
     }
   }
@@ -148,6 +151,7 @@ export default async function DicePage({ searchParams }: Props) {
       initialWorldBossContributions={worldBossContributions}
       initialSkills={characterSkills}
       initialSkillUses={skillUses}
+      hasSessionRecaps={hasSessionRecaps}
     />
   );
 }

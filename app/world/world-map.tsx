@@ -25,7 +25,7 @@ type Route = {
   id: number;
   from_location_id: number;
   to_location_id: number;
-  travel_mode: "fast_travel" | "carriage" | "griffin";
+  travel_mode: "fast_travel" | "foot" | "carriage" | "griffin";
   duration_hours: number;
   cost_copper: number;
   food_cost: number;
@@ -96,6 +96,23 @@ export function WorldMap({
   const current = locations.find((location) => location.id === currentId) ?? points[0];
   const selected = locations.find((location) => location.id === selectedId) ?? current;
   const activeWorldEvent = worldEvents.find((event) => new Date(event.expires_at).getTime() > Date.now() && event.location_id === currentId) ?? worldEvents.find((event) => new Date(event.expires_at).getTime() > Date.now() && event.location_id === null);
+  const reachableIds = useMemo(() => new Set(routes.flatMap(route => route.from_location_id === currentId ? [route.to_location_id] : route.to_location_id === currentId ? [route.from_location_id] : [])), [currentId, routes]);
+  const routeSegments = useMemo(() => {
+    const grouped = new Map<string, Route>();
+    const priority: Record<Route["travel_mode"], number> = { foot: 1, carriage: 2, griffin: 3, fast_travel: 4 };
+    for (const route of routes) {
+      const key = [route.from_location_id, route.to_location_id].sort((a, b) => a - b).join("-");
+      const previous = grouped.get(key);
+      if (!previous || priority[route.travel_mode] < priority[previous.travel_mode]) grouped.set(key, route);
+    }
+    return [...grouped.values()].flatMap(route => {
+      const from = locations.find(location => location.id === route.from_location_id);
+      const to = locations.find(location => location.id === route.to_location_id);
+      if (from?.map_x == null || from.map_y == null || to?.map_x == null || to.map_y == null) return [];
+      const bend = ((route.from_location_id + route.to_location_id) % 2 ? 1 : -1) * 3.2;
+      return [{ route, from, to, path: `M ${from.map_x} ${from.map_y} Q ${(from.map_x + to.map_x) / 2 + bend} ${(from.map_y + to.map_y) / 2 - bend} ${to.map_x} ${to.map_y}` }];
+    });
+  }, [locations, routes]);
 
   useEffect(() => {
     const supabase = createClient();
@@ -224,8 +241,7 @@ export function WorldMap({
           <small>ONE CONTINENT · FOUR HORIZONS</small>
           <h1>แผนที่เอเธอร์รา</h1>
           <p>
-            อาณาจักรออเรเลียน · 2 เมืองใหญ่ · 3 หมู่บ้าน · 1 ดันเจียน · 3
-            wilderness zones
+            {points.length} จุดสำรวจ · {routeSegments.length} เส้นทาง · เลือกเดินได้หลายสาย
           </p>
         </div>
         <div>
@@ -240,12 +256,16 @@ export function WorldMap({
       {activeWorldEvent && <section className={`world-control-banner ${activeWorldEvent.action_type}`}><small>GOD MODE · {activeWorldEvent.action_type.toUpperCase()}</small><b>{activeWorldEvent.title_th}</b><span>{activeWorldEvent.description_th}</span></section>}
       {villageEvent && <section className={`village-event ${villageEvent.status}`}><small>VILLAGE EVENT · DAY {villageEvent.world_day} · {villageEvent.event_type}</small><h3>{villageEvent.title_th}</h3><p>{villageEvent.description_th}</p>{villageEvent.status === "active" ? <div><button onClick={() => resolveVillageEvent("participate")}>เข้าร่วม · +{villageEvent.reward_copper} CP</button><button onClick={() => resolveVillageEvent("ignore")}>ผ่านไป</button></div> : <b>เหตุการณ์สิ้นสุดแล้ว</b>}</section>}
       {message && <p className="world-message">{message}</p>}
-      <section className="interactive-map">
+      <section className="map-scroll" aria-label="แผนที่เส้นทางแบบจุดต่อจุด">
+      <div className="interactive-map">
         <img alt="แผนที่ทวีปเอเธอร์รา" src="/assets/worldmap.png" />
+        <svg className="route-network" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+          {routeSegments.map(({route,path}) => <path className={`${route.travel_mode} ${route.from_location_id === currentId || route.to_location_id === currentId ? "reachable" : ""}`} d={path} vectorEffect="non-scaling-stroke" key={`${route.from_location_id}-${route.to_location_id}`} />)}
+        </svg>
         {points.map((location) => (
           <button
             aria-label={location.name_th}
-            className={`map-marker ${location.location_type} ${selected?.id === location.id ? "selected" : ""}`}
+            className={`map-marker ${location.location_type} ${selected?.id === location.id ? "selected" : ""} ${location.id === currentId ? "current" : reachableIds.has(location.id) ? "reachable" : "distant"}`}
             style={{ left: `${location.map_x}%`, top: `${location.map_y}%` }}
             onClick={() => setSelectedId(location.id)}
             disabled={Boolean(journey)}
@@ -265,6 +285,8 @@ export function WorldMap({
             )}
           </button>
         ))}
+        <div className="map-legend"><span><i /> ไปได้ตอนนี้</span><span><i /> เส้นทางอื่น</span><span><i /> ตำแหน่งคุณ</span></div>
+      </div>
       </section>
       {selected && (
         <section
@@ -296,7 +318,7 @@ export function WorldMap({
                       ? "กำลังเดินทาง…"
                       : route.travel_mode === "fast_travel"
                         ? "Fast Travel · ทันที · ฟรี"
-                        : `${route.travel_mode === "carriage" ? "รถม้า" : "กริฟฟิน"} · ${route.duration_hours} ชม. · ${route.cost_copper} CP · เสบียง ${route.food_cost}`}
+                        : `${route.travel_mode === "foot" ? "เดินเท้า" : route.travel_mode === "carriage" ? "รถม้า" : "กริฟฟิน"} · ${route.duration_hours} ชม. · ${route.cost_copper ? `${route.cost_copper} CP · ` : ""}เสบียง ${route.food_cost}`}
                   </button>
                 ))}
               </div>

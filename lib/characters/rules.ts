@@ -1,6 +1,8 @@
 import { CLASSES, DEFAULT_STATS, RACES, STAT_KEYS, type Appearance, type Stats } from "./catalog";
 
 const COSTS: Record<number, number> = { 8: 0, 9: 1, 10: 2, 11: 3, 12: 4, 13: 5, 14: 7, 15: 9 };
+export const STARTING_POINT_BUDGET = 18;
+export const STARTING_STAT_MAX = 14;
 
 export function pointBuyUsed(stats: Stats) {
   return STAT_KEYS.reduce((total, key) => total + (COSTS[stats[key]] ?? 99), 0);
@@ -25,7 +27,7 @@ export function startingHp(characterClass: string, stats: Stats) {
 
 export function isValidStats(value: unknown): value is Stats {
   if (!value || typeof value !== "object") return false;
-  return STAT_KEYS.every((key) => Number.isInteger((value as Stats)[key]) && (value as Stats)[key] >= 8 && (value as Stats)[key] <= 15) && pointBuyUsed(value as Stats) === 27;
+  return STAT_KEYS.every((key) => Number.isInteger((value as Stats)[key]) && (value as Stats)[key] >= 8 && (value as Stats)[key] <= STARTING_STAT_MAX) && pointBuyUsed(value as Stats) === STARTING_POINT_BUDGET;
 }
 
 export function isValidAppearance(value: unknown): value is Appearance {

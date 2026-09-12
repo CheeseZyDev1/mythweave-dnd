@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { APPEARANCE_OPTIONS, CLASSES, DEFAULT_APPEARANCE, DEFAULT_STATS, RACES, STAT_KEYS, STAT_LABELS, type Appearance, type StatKey, type Stats } from "../../../lib/characters/catalog";
-import { abilityModifier, finalStats, pointBuyUsed, startingHp } from "../../../lib/characters/rules";
+import { abilityModifier, finalStats, pointBuyUsed, STARTING_POINT_BUDGET, STARTING_STAT_MAX, startingHp } from "../../../lib/characters/rules";
 import { CharacterAvatar } from "../character-avatar";
 
 const STEP_LABELS = ["ตัวตนและเผ่า", "เส้นทางอาชีพ", "รูปลักษณ์", "ค่าสถานะ"];
@@ -27,7 +27,7 @@ export function CharacterCreator({dimensions}:{dimensions:Array<{id:string;slug:
   const selectedRace = RACES.find((item) => item.id === race) ?? RACES[0];
   const selectedClass = CLASSES.find((item) => item.id === characterClass) ?? CLASSES[0];
   const used = pointBuyUsed(stats);
-  const remaining = 27 - used;
+  const remaining = STARTING_POINT_BUDGET - used;
   const totals = useMemo(() => finalStats(stats, race), [stats, race]);
   const hp = startingHp(characterClass, totals);
   const portraitPrompt=useMemo(()=>{
@@ -52,7 +52,7 @@ export function CharacterCreator({dimensions}:{dimensions:Array<{id:string;slug:
   function changeStat(key: StatKey, direction: -1 | 1) {
     setStats((current) => {
       const nextValue = current[key] + direction;
-      if (nextValue < 8 || nextValue > 15) return current;
+      if (nextValue < 8 || nextValue > STARTING_STAT_MAX) return current;
       const next = { ...current, [key]: nextValue };
       return pointBuyUsed(next) <= 27 ? next : current;
     });
@@ -129,9 +129,9 @@ export function CharacterCreator({dimensions}:{dimensions:Array<{id:string;slug:
             </div>
           </div>}
           {step === 3 && <div className="creator-stage">
-            <span className="creator-kicker">04 · ATTRIBUTES</span><h1>แบ่งแต้มกำหนดชะตา</h1><p>ใช้แต้มทั้ง 27 แต้ม ค่าพื้นฐานสูงสุด 15 ก่อนรับโบนัสจากเผ่า · เมื่อเกิด ระบบจะสุ่มอาวุธ อุปกรณ์ และ 3 สกิลจากคลังประจำคลาสให้ทันที</p>
-            <div className={`point-budget ${remaining === 0 ? "complete" : ""}`}><span>แต้มคงเหลือ</span><strong>{remaining}</strong><small>/ 27</small></div>
-            <div className="stats-builder">{STAT_KEYS.map((key) => { const bonus = totals[key] - stats[key]; const modifier = abilityModifier(totals[key]); return <article key={key}><div><b>{STAT_LABELS[key].short}</b><span>{STAT_LABELS[key].label}</span></div><button disabled={stats[key] <= 8} onClick={() => changeStat(key, -1)} type="button">−</button><strong>{stats[key]}</strong><button disabled={stats[key] >= 15 || pointBuyUsed({ ...stats, [key]: stats[key] + 1 }) > 27} onClick={() => changeStat(key, 1)} type="button">+</button><em>{bonus > 0 ? `+${bonus} เผ่า` : "—"}</em><i>รวม {totals[key]} ({modifier >= 0 ? "+" : ""}{modifier})</i></article>})}</div>
+            <span className="creator-kicker">04 · ATTRIBUTES</span><h1>แบ่งแต้มกำหนดชะตา</h1><p>ใช้แต้มทั้ง {STARTING_POINT_BUDGET} แต้ม ค่าพื้นฐานสูงสุด {STARTING_STAT_MAX} ก่อนรับโบนัสจากเผ่า เพื่อให้เริ่มต้นแบบนักผจญภัยมือใหม่และเติบโตระหว่างเล่น · เมื่อเกิด ระบบจะสุ่มอาวุธ อุปกรณ์ และ 3 สกิลให้ทันที</p>
+            <div className={`point-budget ${remaining === 0 ? "complete" : ""}`}><span>แต้มคงเหลือ</span><strong>{remaining}</strong><small>/ {STARTING_POINT_BUDGET}</small></div>
+            <div className="stats-builder">{STAT_KEYS.map((key) => { const bonus = totals[key] - stats[key]; const modifier = abilityModifier(totals[key]); return <article key={key}><div><b>{STAT_LABELS[key].short}</b><span>{STAT_LABELS[key].label}</span></div><button disabled={stats[key] <= 8} onClick={() => changeStat(key, -1)} type="button">−</button><strong>{stats[key]}</strong><button disabled={stats[key] >= STARTING_STAT_MAX || pointBuyUsed({ ...stats, [key]: stats[key] + 1 }) > STARTING_POINT_BUDGET} onClick={() => changeStat(key, 1)} type="button">+</button><em>{bonus > 0 ? `+${bonus} เผ่า` : "—"}</em><i>รวม {totals[key]} ({modifier >= 0 ? "+" : ""}{modifier})</i></article>})}</div>
           </div>}
           {error && <div className="creator-error" role="alert">{error}</div>}
           <div className="creator-actions"><button disabled={step === 0} onClick={() => setStep((current) => Math.max(0, current - 1))} type="button">ย้อนกลับ</button>{step < 3 ? <button className="primary" onClick={nextStep} type="button">ขั้นถัดไป →</button> : <button className="primary" disabled={saving || remaining !== 0} onClick={createCharacter} type="button">{saving ? "กำลังจารึก..." : "ยืนยันและสร้างตัวละคร"}</button>}</div>

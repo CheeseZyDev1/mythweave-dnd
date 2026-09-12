@@ -11,6 +11,7 @@ import "./brewing.css";
 import "./forge.css";
 import "./monster-forge.css";
 import "./world.css";
+import "./world-routes.css";
 import "./fast-travel.css";
 import "./vehicle-travel.css";
 import "./race-lore.css";

@@ -21,7 +21,7 @@ export async function POST(request: Request) {
   } else {
     const locationId = Number(body?.locationId);
     const mode = String(body?.mode ?? "fast_travel");
-    if (!Number.isInteger(locationId) || locationId < 1 || !["fast_travel", "carriage", "griffin"].includes(mode)) return NextResponse.json({ error: "invalid_request" }, { status: 400 });
+    if (!Number.isInteger(locationId) || locationId < 1 || !["fast_travel", "foot", "carriage", "griffin"].includes(mode)) return NextResponse.json({ error: "invalid_request" }, { status: 400 });
     const fn = mode === "fast_travel" ? "fast_travel_character" : "travel_character_route";
     const params = mode === "fast_travel" ? { target_character_id: characterId, target_location_id: locationId } : { target_character_id: characterId, target_location_id: locationId, target_mode: mode };
     ({ data, error } = await supabase.rpc(fn, params));
