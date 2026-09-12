@@ -39,7 +39,7 @@ export default async function DicePage({ searchParams }: Props) {
   if(activeSolo){const{data:life}=await supabase.from("solo_life_states").select("status").eq("character_id",activeSolo.character_id).maybeSingle();ghostMode=life?.status==="dead";if(!ghostMode)redirect(`/solo?character=${activeSolo.character_id}`);}
 
   const { table: tableId } = await searchParams;
-  let table: { id: string; code: string } | null = null;
+  let table: { id: string; code: string;dm_mode:"human"|"subscription"|"api" } | null = null;
   let rolls: DiceRoll[] = [];
   let members:Fighter[] = [];
   let awareness:{user_id:string;display_name:string;role:string;character_id:string|null;character_name:string|null;location_id:number|null;location_name:string|null;awareness_tier:string}[]=[];
@@ -59,7 +59,7 @@ export default async function DicePage({ searchParams }: Props) {
   if (tableId) {
     const { data } = await supabase
       .from("dice_tables")
-      .select("id,code")
+      .select("id,code,dm_mode")
       .eq("id", tableId)
       .maybeSingle();
     table = data;

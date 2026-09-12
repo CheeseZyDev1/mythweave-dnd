@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "../../lib/supabase/client";
 import { DICE_SIDES, type DiceRoll } from "../../lib/dice/types";
@@ -27,26 +26,10 @@ import {PartyAwareness,type AwarenessMember,type MessengerDispatch}from"./party-
 import{WorldBossPanel}from"./world-boss-panel";import type{WorldBoss,WorldBossContribution}from"../../lib/combat/world-boss";
 import{SkillPanel}from"./skill-panel";import type{CharacterSkill,SkillUse}from"../../lib/skills/types";
 import{BattleStage,type Fighter}from"./battle-stage";
+import{RoomGateway}from"./room-gateway";
 
-type TableInfo = { id: string; code: string };
+type TableInfo = { id: string; code: string;dm_mode:"human"|"subscription"|"api" };
 type Member = Fighter;
-
-const tableErrors: Record<string, string> = {
-  invalid_code: "รูปแบบรหัสไม่ถูกต้อง",
-  table_not_found: "ไม่พบโต๊ะเต๋ารหัสนี้",
-  create_failed: "สร้างโต๊ะไม่สำเร็จ",
-  ghost_spectator_only: "ดวงวิญญาณเข้าร่วมได้เฉพาะ Spectator",
-  character_unavailable: "ตัวละครนี้เสียชีวิตหรือจบตำนานแล้ว",
-  solo_mode_active: "ต้องอยู่ในสภาพวิญญาณก่อนเข้าชมห้อง",
-};
-
-function formatCode(value: string) {
-  return value
-    .toUpperCase()
-    .replace(/[^A-F0-9]/g, "")
-    .slice(0, 12)
-    .replace(/(.{4})(?=.)/g, "$1-");
-}
 
 function rollLabel(roll: DiceRoll) {
   const modifier =
@@ -97,18 +80,14 @@ export function DiceTable({
   initialSkills:CharacterSkill[];initialSkillUses:SkillUse[];
   hasSessionRecaps:boolean;
 }) {
-  const router = useRouter();
   const [table] = useState(initialTable);
   const [rolls, setRolls] = useState(initialRolls);
-  const [code, setCode] = useState("");
-  const [joinRole, setJoinRole] = useState(ghostMode?"spectator":"player");
-  const[selectedCharacterId,setSelectedCharacterId]=useState(characters[0]?.id??"");
   const [diceCount, setDiceCount] = useState(1);
   const [diceSides, setDiceSides] = useState(20);
   const [modifier, setModifier] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(
-    invalidTable ? "คุณยังไม่ได้เข้าร่วมโต๊ะนี้ หรือโต๊ะไม่มีอยู่" : "",
+    "",
   );
   const [animatedRoll, setAnimatedRoll] = useState<DiceRoll | null>(
     initialRolls.at(-1) ?? null,
@@ -163,28 +142,6 @@ export function DiceTable({
     [rolls],
   );
 
-  async function tableAction(action: "create" | "join") {
-    setBusy(true);
-    setError("");
-    try {
-      const response = await fetch("/api/dice/tables", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action, code, role: joinRole,characterId:selectedCharacterId }),
-      });
-      const result = await response.json();
-      if (!response.ok)
-        throw new Error(tableErrors[result.error] ?? "เชื่อมต่อโต๊ะไม่สำเร็จ");
-      router.push(`/dice?table=${result.tableId}`);
-      router.refresh();
-    } catch (caught) {
-      setError(
-        caught instanceof Error ? caught.message : "เชื่อมต่อโต๊ะไม่สำเร็จ",
-      );
-      setBusy(false);
-    }
-  }
-
   async function rollDice() {
     if (!table) return;
     setBusy(true);
@@ -229,67 +186,7 @@ export function DiceTable({
     await navigator.clipboard.writeText(table.code);
   }
 
-  if (!table)
-    return (
-      <main className="dice-shell">
-        <header className="dice-topbar">
-          <Link href="/lobby">← กลับล็อบบี้</Link>
-          <span>MYTHWEAVE · REALTIME DICE</span>
-          <i>PHASE 1</i>
-        </header>
-        <section className="dice-gateway">
-          <small>THE SHARED TABLE</small>
-          <h1>
-            ทอยชะตา
-            <br />
-            พร้อมกัน
-          </h1>
-          <p>{ghostMode?"ร่างกายของคุณล้มลงแล้ว แต่ดวงวิญญาณยังเข้าห้องด้วยรหัสเพื่อเฝ้าดูปาร์ตี้แบบ read-only ได้":"สร้างห้องใหม่ในฐานะ DM แล้วส่งรหัสให้เพื่อน หรือกรอกรหัสและเลือกบทบาท ทุกผลทอยจะปรากฏพร้อมกันแบบ real-time"}</p>
-          <div className="dice-gateway-actions">
-            {!ghostMode&&<button onClick={() => tableAction("create")} disabled={busy}>
-              {busy ? "กำลังเปิดห้อง…" : "สร้างห้องใหม่ · เป็น DM"}
-            </button>}
-            <span>หรือเข้าร่วมด้วยรหัส</span>
-            {characters.length>0&&<label className="dice-character-picker"><small>ตัวละครที่ใช้ในห้อง</small><select value={selectedCharacterId} onChange={event=>setSelectedCharacterId(event.target.value)} disabled={ghostMode}>{characters.map(character=><option value={character.id} key={character.id}>{character.name}</option>)}</select></label>}
-            {ghostMode?<div className="ghost-mode-banner">GHOST · SPECTATOR ONLY</div>:<div className="dice-role-picker">
-              {[
-                ["player", "Player"],
-                ["dm", "DM"],
-                ["spectator", "Spectator"],
-              ].map(([value, label]) => (
-                <button
-                  className={joinRole === value ? "selected" : ""}
-                  onClick={() => setJoinRole(value)}
-                  key={value}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>}
-            <div>
-              <input
-                aria-label="รหัสห้อง"
-                placeholder="AB12-CD34-EF56"
-                value={code}
-                onChange={(event) => setCode(formatCode(event.target.value))}
-                maxLength={14}
-              />
-              <button
-                onClick={() => tableAction("join")}
-                disabled={busy || code.length !== 14}
-              >
-                เข้าร่วม
-              </button>
-            </div>
-          </div>
-          {error && <p className="dice-error">{error}</p>}
-          <footer>
-            <b>PRIVATE ROOM</b>
-            <span>เฉพาะผู้ที่มีรหัสและล็อกอินแล้วจึงเข้าถึงข้อมูลได้</span>
-          </footer>
-        </section>
-      </main>
-    );
+  if (!table)return <RoomGateway characters={characters}ghostMode={ghostMode}invalidTable={invalidTable}/>;
 
   return (
     <main className="dice-shell">
@@ -465,6 +362,7 @@ export function DiceTable({
           {(isDm||initialNarrations.length>0)&&<ManualDmConsole
             tableId={table.id}
             isDm={isDm}
+            mode={table.dm_mode}
             members={members}
             rollSummary={rolls
               .slice(-5)

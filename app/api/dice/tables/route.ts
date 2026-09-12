@@ -24,16 +24,17 @@ export async function POST(request: Request) {
   if (action === "create") {
     if(activeSolo)return NextResponse.json({error:"solo_mode_active"},{status:409});
     if(!characterId)return NextResponse.json({error:"character_required"},{status:409});
-    const { data, error } = await supabase.rpc("create_dimension_dice_table", { member_name: displayName,target_character_id:characterId }).single<{ table_id: string; table_code: string }>();
+    const dmMode=String(body?.dmMode??"human");if(!["human","subscription","api"].includes(dmMode))return NextResponse.json({error:"invalid_dm_mode"},{status:400});
+    const { data, error } = await supabase.rpc("create_configured_dimension_dice_table", { member_name: displayName,target_character_id:characterId,target_dm_mode:dmMode }).single<{ table_id: string; table_code: string }>();
     if (error || !data){const detail=error?.message??"";const errorCode=detail.includes("character unavailable")?"character_unavailable":detail.includes("solo mode forbids rooms")?"solo_mode_active":"create_failed";return NextResponse.json({error:errorCode},{status:errorCode==="create_failed"?500:409});}
-    return NextResponse.json({ tableId: data.table_id, code: data.table_code, characterId,dimensionId:ownedCharacters?.find(item=>item.id===characterId)?.dimension_id }, { status: 201 });
+    return NextResponse.json({ tableId: data.table_id, code: data.table_code, characterId,dimensionId:ownedCharacters?.find(item=>item.id===characterId)?.dimension_id,dmMode }, { status: 201 });
   }
 
   if (action === "join") {
     const code = String(body?.code ?? "").trim().toUpperCase();
     const role = String(body?.role ?? "player").toLowerCase();
     if (!/^[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{4}$/.test(code)) return NextResponse.json({ error: "invalid_code" }, { status: 400 });
-    if (!["player", "dm", "spectator"].includes(role)) return NextResponse.json({ error: "invalid_role" }, { status: 400 });
+    if (!["player", "spectator"].includes(role)) return NextResponse.json({ error: "invalid_role" }, { status: 400 });
     if(activeSolo&&!isGhost)return NextResponse.json({error:"solo_mode_active"},{status:409});
     if(isGhost&&role!=="spectator")return NextResponse.json({error:"ghost_spectator_only"},{status:409});
     const { data, error } = await supabase.rpc("join_dimension_dice_table", { invite_code: code, member_name: displayName, requested_role: role,target_character_id:characterId }).single<{ table_id: string; table_code: string }>();
