@@ -18,6 +18,7 @@ import type{WorldBoss,WorldBossContribution}from"../../lib/combat/world-boss";
 import type{CharacterSkill,SkillUse}from"../../lib/skills/types";
 import type{Appearance}from"../../lib/characters/catalog";
 import type{Fighter}from"./battle-stage";
+import type{CombatDmMoment}from"../../lib/combat/dm-moments";
 
 export const metadata: Metadata = { title: "Realtime Dice — Mythweave" };
 
@@ -54,6 +55,7 @@ export default async function DicePage({ searchParams }: Props) {
   let companions: RoomHomunculus[] = [];
   let companionCommands: RoomHomunculusCommand[] = [];
   let characterSkills:CharacterSkill[]=[];let skillUses:SkillUse[]=[];
+  let combatDmMoments:CombatDmMoment[]=[];
   let hasSessionRecaps=false;
   const worldBoss=(activeBoss as WorldBoss|null)??null;let worldBossContributions:WorldBossContribution[]=[];
   if (tableId) {
@@ -72,7 +74,7 @@ export default async function DicePage({ searchParams }: Props) {
         { data: messageData },
         { data: saveData },
         { data: npcData },
-        { data: narrationData },
+        { data: narrationData },{data:combatDmMomentData},
         { data: monsterData },{data:companionData},{data:companionCommandData},{data:skillUseData},{count:recapCount},
       ] = await Promise.all([
         supabase
@@ -101,6 +103,7 @@ export default async function DicePage({ searchParams }: Props) {
         supabase.from("room_saves").select("id,table_id,slot,save_name,entry_count,round_number,created_by,created_at,updated_at").eq("table_id", table.id).order("slot"),
         supabase.from("npc_dialogue_history").select("*").eq("table_id",table.id).order("created_at",{ascending:false}).limit(20),
         supabase.from("dm_narrations").select("*").eq("table_id",table.id).order("created_at",{ascending:false}).limit(10),
+        supabase.from("combat_dm_moments").select("*").eq("table_id",table.id).order("created_at",{ascending:false}).limit(10),
         supabase.from("generated_monsters").select("*").eq("table_id",table.id).order("created_at",{ascending:false}).limit(12),
         supabase.from("homunculus_companions").select("id,user_id,character_id,name,stance,hp_current,hp_max,guard_points,active_table_id").eq("active_table_id",table.id),
         supabase.from("homunculus_commands").select("id,companion_id,command,response_th,created_at").eq("table_id",table.id).order("created_at",{ascending:false}).limit(20),
@@ -117,6 +120,7 @@ export default async function DicePage({ searchParams }: Props) {
       saves = (saveData ?? []) as RoomSave[];
       npcHistory = ((npcData ?? []) as NpcDialogue[]).reverse();
       narrations = ((narrationData ?? []) as DmNarration[]).reverse();
+      combatDmMoments=(combatDmMomentData??[])as CombatDmMoment[];
       monsters = (monsterData ?? []) as GeneratedMonster[];
       companions=(companionData??[])as RoomHomunculus[];companionCommands=(companionCommandData??[])as RoomHomunculusCommand[];
       skillUses=((skillUseData??[])as SkillUse[]).reverse();
@@ -150,6 +154,7 @@ export default async function DicePage({ searchParams }: Props) {
       initialWorldBossContributions={worldBossContributions}
       initialSkills={characterSkills}
       initialSkillUses={skillUses}
+      initialCombatDmMoments={combatDmMoments}
       hasSessionRecaps={hasSessionRecaps}
     />
   );

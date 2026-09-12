@@ -36,6 +36,7 @@ export async function GET(request: Request) {
     { data: entries },
     { data: messages },
     { data: npcHistory },
+    {data:combatActions},{data:combatMoments},
   ] = await Promise.all([
     supabase
       .from("dice_table_members")
@@ -69,6 +70,8 @@ export async function GET(request: Request) {
       .eq("table_id", tableId)
       .order("created_at", { ascending: false })
       .limit(3),
+    supabase.from("timed_combat_actions").select("character_name,grade,applied_damage,monster_hp_before,monster_hp_after").eq("table_id",tableId).eq("status","resolved").order("created_at",{ascending:false}).limit(5),
+    supabase.from("combat_dm_moments").select("title_th,description_th,trigger_type").eq("table_id",tableId).eq("status","pending").order("created_at").limit(3),
   ]);
 
   const currentTurn = entries?.find(
@@ -81,6 +84,9 @@ export async function GET(request: Request) {
     `ผลเต๋าล่าสุด:\n${rolls?.map((roll) => `${roll.roller_name}: ${roll.dice_count}d${roll.dice_sides} = ${roll.total}`).join("\n") || "ไม่มี"}`,
     `แชตล่าสุด:\n${messages?.map((message) => `${message.sender_name}: ${message.content}`).join("\n") || "ไม่มี"}`,
     `บท NPC ล่าสุด:\n${npcHistory?.map((line) => `${line.npc_name}: ${line.text_th}`).join("\n") || "ไม่มี"}`,
+    `การต่อสู้ล่าสุด:\n${combatActions?.map(action=>`${action.character_name}: ${action.grade??"unknown"}, ${action.applied_damage??0} damage, HP ศัตรู ${action.monster_hp_before??"?"} → ${action.monster_hp_after??"?"}`).join("\n")||"ไม่มี"}`,
+    `จังหวะที่รอ DM ตัดสิน:\n${combatMoments?.map(moment=>`[${moment.trigger_type}] ${moment.title_th}: ${moment.description_th}`).join("\n")||"ไม่มี"}`,
+    "ในการต่อสู้ ปล่อยมอนลูกกระจ๊อกดำเนินอัตโนมัติ แทรกแซงเฉพาะจังหวะที่ระบบส่งมา: ถ้าเสี่ยงตายแบบไร้ความหมายให้เสนอทางรอดที่มีราคา ถ้าโชคดีมากให้อธิบายอย่างสมเหตุผล และห้ามแก้ HP แบบเงียบๆ",
     "ตอบเฉพาะคำบรรยายฉากและตัวเลือก ห้ามตัดสินใจแทนผู้เล่น",
   ].join("\n\n");
 

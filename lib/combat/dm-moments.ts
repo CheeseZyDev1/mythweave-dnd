@@ -1,0 +1,1 @@
+export type CombatDmMoment={id:string;table_id:string;action_id:string;monster_id:string;trigger_type:"critical"|"fumble"|"defeat"|"fortune";title_th:string;description_th:string;status:"pending"|"resolved";resolution:"dice"|"fortune"|"twist"|null;resolved_by:string|null;resolved_at:string|null;created_at:string};

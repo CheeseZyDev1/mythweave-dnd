@@ -27,6 +27,7 @@ import{WorldBossPanel}from"./world-boss-panel";import type{WorldBoss,WorldBossCo
 import{SkillPanel}from"./skill-panel";import type{CharacterSkill,SkillUse}from"../../lib/skills/types";
 import{BattleStage,type Fighter}from"./battle-stage";
 import{RoomGateway}from"./room-gateway";
+import{CombatDmPanel}from"./combat-dm-panel";import type{CombatDmMoment}from"../../lib/combat/dm-moments";
 
 type TableInfo = { id: string; code: string;dm_mode:"human"|"subscription"|"api" };
 type Member = Fighter;
@@ -60,6 +61,7 @@ export function DiceTable({
   initialWorldBoss,initialWorldBossContributions,
   initialSkills,initialSkillUses,
   hasSessionRecaps,
+  initialCombatDmMoments,
 }: {
   initialTable: TableInfo | null;
   initialRolls: DiceRoll[];
@@ -79,6 +81,7 @@ export function DiceTable({
   initialWorldBoss:WorldBoss|null;initialWorldBossContributions:WorldBossContribution[];
   initialSkills:CharacterSkill[];initialSkillUses:SkillUse[];
   hasSessionRecaps:boolean;
+  initialCombatDmMoments:CombatDmMoment[];
 }) {
   const [table] = useState(initialTable);
   const [rolls, setRolls] = useState(initialRolls);
@@ -264,6 +267,7 @@ export function DiceTable({
         </aside>
         <div className="dice-board">
           <BattleStage tableId={table.id} members={members} initialMonsters={initialMonsters} initialSkills={initialSkillUses} initialTurn={initialInitiativeEntries.find(entry=>entry.id===initialInitiativeTracker?.current_entry_id)?.name}/>
+          <CombatDmPanel tableId={table.id} isDm={isDm} initialMoments={initialCombatDmMoments}/>
           <section className="dice-stage">
             <div className={`animated-die ${rolling ? "rolling" : ""}`}>
               <span>{animatedRoll?.total ?? "?"}</span>
