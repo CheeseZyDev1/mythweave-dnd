@@ -8,7 +8,7 @@ import { abilityModifier, finalStats, pointBuyUsed, STARTING_POINT_BUDGET, START
 import { CharacterAvatar } from "../character-avatar";
 
 const STEP_LABELS = ["ตัวตนและเผ่า", "เส้นทางอาชีพ", "รูปลักษณ์", "ค่าสถานะ"];
-type CreatedCharacter={id:string;starterItems:Array<{quantity:number;content_items:{name_th:string;category:string;rarity:string}}>;starterSkills:Array<{id:number;name_th:string;description_th:string;effect_type:string}>};
+type CreatedCharacter={id:string;starterItems:Array<{quantity:number;content_items:{name_th:string;category:string;rarity:string}}>;starterSkills:Array<{id:number;name_th:string;description_th:string;effect_type:string}>;divineBlessing:{tier:number;name_th:string;deity_th:string;description_th:string}|null};
 
 export function CharacterCreator({dimensions}:{dimensions:Array<{id:string;slug:string;name_th:string;difficulty_label_th:string;accent_color:string}>}) {
   const router = useRouter();
@@ -68,6 +68,15 @@ export function CharacterCreator({dimensions}:{dimensions:Array<{id:string;slug:
     setAppearance({skinTone:pick(APPEARANCE_OPTIONS.skinTone).id,hairStyle:pick(APPEARANCE_OPTIONS.hairStyle).id,hairColor:pick(APPEARANCE_OPTIONS.hairColor).id,face:pick(APPEARANCE_OPTIONS.face).id,body:pick(APPEARANCE_OPTIONS.body).id,portraitBackdrop:pick(APPEARANCE_OPTIONS.portraitBackdrop).id,portraitFrame:pick(APPEARANCE_OPTIONS.portraitFrame).id,portraitSigil:pick(APPEARANCE_OPTIONS.portraitSigil).id});
   }
 
+  function randomCharacter(){
+    const pick=<T,>(items:readonly T[])=>items[Math.floor(Math.random()*items.length)];
+    const first=["Astra","Kael","Lyra","Nox","Orin","Mira","Tarin","Vela"],last=["Dawnfall","Runebloom","Ashward","Moonveil","Wildstep","Goldleaf"];
+    const nextRace=pick(RACES),nextClass=pick(CLASSES),nextProfession=pick(PROFESSIONS),links=compatibleSecondaryClasses(nextClass.id);
+    const shuffled=STAT_KEYS.filter(key=>key!==nextClass.primary).sort(()=>Math.random()-.5),values=[13,12,9,9,8];
+    const nextStats={...DEFAULT_STATS};nextStats[nextClass.primary]=14;shuffled.forEach((key,index)=>nextStats[key]=values[index]);
+    setName(`${pick(first)} ${pick(last)}`);chooseRace(nextRace.id);setCharacterClass(nextClass.id);setSecondaryClass(links.length&&Math.random()<.6?pick(links).id:"");setProfession(nextProfession.id);setStats(nextStats);randomAppearance();setError("");
+  }
+
   function nextStep() {
     setError("");
     if (step === 0 && (name.trim().length < 2 || name.trim().length > 24)) {
@@ -101,7 +110,7 @@ export function CharacterCreator({dimensions}:{dimensions:Array<{id:string;slug:
 
   return (
     <main className="creator-shell">
-      {created&&<div className="creator-complete"role="dialog"aria-modal="true"><section><small>CHARACTER AWAKENED</small><h2>{name} พร้อมออกเดินทางแล้ว</h2><p>ระบบสุ่มชุดกำเนิดและสกิลประจำตัวให้เรียบร้อย</p><div className="birth-loadout"><article><b>ไอเทมแรกเกิด</b>{created.starterItems.map((entry,index)=><span key={index}>{entry.content_items.name_th} ×{entry.quantity}</span>)}</article><article><b>สกิลที่ติดตัว</b>{created.starterSkills.map(skill=><span key={skill.id}>{skill.name_th}</span>)}</article></div><label className="portrait-prompt"><b>Prompt สำหรับสร้างภาพด้วย AI</b><textarea readOnly value={portraitPrompt}/></label><div className="complete-actions"><button onClick={async()=>{await navigator.clipboard.writeText(portraitPrompt);setCopied(true)}}>{copied?"คัดลอกแล้ว ✓":"คัดลอก Prompt"}</button><button className="primary"onClick={()=>{router.replace(`/characters/${created.id}`);router.refresh()}}>ไปอัปโหลดรูปตัวละคร →</button></div></section></div>}
+      {created&&<div className="creator-complete"role="dialog"aria-modal="true"><section><small>CHARACTER AWAKENED</small><h2>{name} พร้อมออกเดินทางแล้ว</h2><p>ระบบสุ่มชุดกำเนิดและสกิลประจำตัวให้เรียบร้อย</p>{created.divineBlessing&&<article className={`birth-blessing tier-${created.divineBlessing.tier}`}><small>DIVINE BLESSING · TIER {created.divineBlessing.tier}</small><h3>{created.divineBlessing.name_th}</h3><b>{created.divineBlessing.deity_th}</b><p>{created.divineBlessing.description_th}</p></article>}<div className="birth-loadout"><article><b>ไอเทมแรกเกิด</b>{created.starterItems.map((entry,index)=><span key={index}>{entry.content_items.name_th} ×{entry.quantity}</span>)}</article><article><b>สกิลที่ติดตัว</b>{created.starterSkills.map(skill=><span key={skill.id}>{skill.name_th}</span>)}</article></div><label className="portrait-prompt"><b>Prompt สำหรับสร้างภาพด้วย AI</b><textarea readOnly value={portraitPrompt}/></label><div className="complete-actions"><button onClick={async()=>{await navigator.clipboard.writeText(portraitPrompt);setCopied(true)}}>{copied?"คัดลอกแล้ว ✓":"คัดลอก Prompt"}</button><button className="primary"onClick={()=>{router.replace(`/characters/${created.id}`);router.refresh()}}>ไปอัปโหลดรูปตัวละคร →</button></div></section></div>}
       <header className="creator-topbar">
         <Link href="/lobby">← กลับล็อบบี้</Link>
         <span>MYTHWEAVE · CHARACTER FORGE</span>
@@ -111,7 +120,7 @@ export function CharacterCreator({dimensions}:{dimensions:Array<{id:string;slug:
       <section className="creator-layout">
         <div className="creator-workbench">
           {step === 0 && <div className="creator-stage">
-            <span className="creator-kicker">01 · ORIGIN</span><h1>ตั้งชื่อและเลือกสายเลือด</h1><p>เผ่าจะเพิ่มค่าสถานะและกำหนดจุดเริ่มต้นของเรื่องราวในอนาคต</p>
+            <span className="creator-kicker">01 · ORIGIN</span><h1>ตั้งชื่อและเลือกสายเลือด</h1><p>เผ่าจะเพิ่มค่าสถานะและกำหนดจุดเริ่มต้นของเรื่องราวในอนาคต</p><button className="random-character"onClick={randomCharacter}type="button">⚄ สุ่มตัวละครครบชุดให้ฉัน</button>
             <label className="creator-name"><span>ชื่อตัวละคร</span><input autoFocus maxLength={24} onChange={(event) => setName(event.target.value)} placeholder="เช่น Aria Nightbloom" value={name} /></label>
             <label className="creator-name"><span>มิติประจำตัว · เปลี่ยนข้ามมิติไม่ได้</span><select value={dimensionId}onChange={event=>setDimensionId(event.target.value)}>{dimensions.map(dimension=><option value={dimension.id}key={dimension.id}>{dimension.name_th} · {dimension.difficulty_label_th}</option>)}</select></label>
             <div className="race-grid">{RACES.map((item) => <button className={race === item.id ? "selected" : ""} key={item.id} onClick={() => chooseRace(item.id)} type="button"><b>{item.icon}</b><span><strong>{item.label}</strong><small>{item.tagline}</small></span><em>{Object.entries(item.bonuses).map(([key, value]) => `+${value} ${STAT_LABELS[key as StatKey].short}`).join(" · ")}</em></button>)}</div>

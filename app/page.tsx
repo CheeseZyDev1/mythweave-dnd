@@ -21,7 +21,7 @@ export default function Home() {
           <h1>โลกเดิม<br /><em>รากฐานพร้อมแล้ว</em></h1>
           <p className="intro">Mythweave พร้อมเข้าสู่การสร้างระบบบัญชีผู้เล่น ห้องออนไลน์แบบเรียลไทม์ และการผจญภัยที่บันทึกไว้เล่นต่อได้</p>
           <div className="migration-status"><span>01</span><div><b>Phase 0 พร้อมใช้งานบนเว็บ</b><small>Next.js, Supabase และ Vercel เชื่อมต่อสำเร็จ</small></div></div>
-          <Link className="foundation-cta" href="/auth">เข้าสู่ห้องผจญภัย <span>→</span></Link>
+          <Link className="foundation-cta" href="/auth">เข้าสู่ห้องผจญภัย <span>→</span></Link> <Link className="foundation-cta" href="/demo">ทดลองเล่นก่อน <span>⚄</span></Link>
         </div>
 
         <div className="world-window" aria-label="แผนที่เอเธอเรีย">

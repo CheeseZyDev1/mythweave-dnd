@@ -39,7 +39,7 @@ function signed(value: number) {
   return value >= 0 ? `+${value}` : String(value);
 }
 
-export function CharacterSheet({ character, wallet, statuses, innate,skills }: { character: Character; skills:SheetSkill[]; innate: {name_th:string;description_th:string;activation:string;effect_key:string;effect_value:number;usage_rule_th:string}|null; wallet: { balance: number; transactions: WalletTransaction[] }; statuses: { templates: Array<{id:number;name_th:string;effect_type:string;description_th:string;default_duration:number;max_stacks:number}>; effects: Array<{id:string;template_id:number;name_th:string;effect_type:string;description_th:string;duration_remaining:number;stacks:number;source:string}> } }) {
+export function CharacterSheet({ character, wallet, statuses, innate,skills,blessing }: { character: Character; skills:SheetSkill[]; blessing:{tier:number;name_th:string;deity_th:string;description_th:string;effect_key:string;last_triggered_at:string|null;trigger_count:number}|null; innate: {name_th:string;description_th:string;activation:string;effect_key:string;effect_value:number;usage_rule_th:string}|null; wallet: { balance: number; transactions: WalletTransaction[] }; statuses: { templates: Array<{id:number;name_th:string;effect_type:string;description_th:string;default_duration:number;max_stacks:number}>; effects: Array<{id:string;template_id:number;name_th:string;effect_type:string;description_th:string;duration_remaining:number;stacks:number;source:string}> } }) {
   const [stats, setStats] = useState(character.stats);
   const [hpCurrent, setHpCurrent] = useState(character.hpCurrent);
   const [hpMax, setHpMax] = useState(character.hpMax);
@@ -147,6 +147,7 @@ export function CharacterSheet({ character, wallet, statuses, innate,skills }: {
           </div>
           <p className="sheet-updated">แก้ไขล่าสุด {new Date(character.updatedAt).toLocaleString("th-TH")}</p>
           {innate && <section className="innate-card"><small>INNATE GIFT · {innate.activation}</small><h3>{innate.name_th}</h3><p>{innate.description_th}</p><b>{innate.usage_rule_th}</b></section>}
+          {blessing&&<section className={`blessing-card tier-${blessing.tier}`}><small>DIVINE BLESSING · TIER {blessing.tier}</small><h3>{blessing.name_th}</h3><b>{blessing.deity_th}</b><p>{blessing.description_th}</p>{blessing.effect_key==="divine_rescue"&&<small>{blessing.last_triggered_at?`เทพเคยช่วยแล้ว ${new Date(blessing.last_triggered_at).toLocaleDateString("th-TH")} · ฟื้นพลังหลัง 7 วัน`:"พรพร้อมตอบรับเมื่อเผชิญความตาย"}</small>}</section>}
           <Link className="wallet-shop-link" href={`/relationships?character=${character.id}`}>สายสัมพันธ์ NPC →</Link>
           <Link className="wallet-shop-link" href={`/guilds?character=${character.id}`}>ชื่อเสียงกิลด์ →</Link>
           <Link className="wallet-shop-link" href={`/crafting/cooking?character=${character.id}`}>ครัวกองไฟ →</Link>

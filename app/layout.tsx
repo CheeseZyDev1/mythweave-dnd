@@ -49,6 +49,7 @@ import { ThemeController } from "./theme-controller";
 import "./sound-controller.css";
 import { SoundController } from "./sound-controller";
 import "./motion-experience.css";
+import "./new-player-systems.css";
 import { MotionExperience } from "./motion-experience";
 
 const cinzel = Cinzel({ subsets: ["latin"], variable: "--font-cinzel" });

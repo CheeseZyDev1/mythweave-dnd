@@ -50,11 +50,13 @@ export async function POST(request: Request) {
   if (error) return NextResponse.json({ error: "save_failed" }, { status: 500 });
   const{error:callingError}=await supabase.rpc("configure_character_calling",{target_character_id:data.id,target_secondary_class:secondaryClass,target_profession_id:profession});
   if(callingError){await supabase.from("characters").delete().eq("id",data.id);return NextResponse.json({error:"calling_failed"},{status:500})}
-  const[{data:starterItems},{data:starterSkills}]=await Promise.all([
+  const[{data:starterItems},{data:starterSkills},{data:blessing}]=await Promise.all([
     supabase.from("character_item_stacks").select("quantity,content_items!inner(name_th,category,rarity)").eq("character_id",data.id).neq("content_items.rarity","soulbound"),
     supabase.from("character_skills").select("skill_definitions(id,name_th,description_th,effect_type)").eq("character_id",data.id),
+    supabase.from("character_divine_blessings").select("definition:divine_blessing_definitions(tier,name_th,deity_th,description_th)").eq("character_id",data.id).maybeSingle(),
   ]);
   const normalizedItems=(starterItems??[]).flatMap(item=>{const details=Array.isArray(item.content_items)?item.content_items[0]:item.content_items;return details?[{quantity:item.quantity,content_items:details}]:[]});
   const normalizedSkills=(starterSkills??[]).flatMap(item=>item.skill_definitions??[]);
-  return NextResponse.json({id:data.id,starterItems:normalizedItems,starterSkills:normalizedSkills}, { status: 201 });
+  const divineBlessing=Array.isArray(blessing?.definition)?blessing.definition[0]??null:blessing?.definition??null;
+  return NextResponse.json({id:data.id,starterItems:normalizedItems,starterSkills:normalizedSkills,divineBlessing}, { status: 201 });
 }
