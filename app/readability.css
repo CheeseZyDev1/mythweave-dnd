@@ -1,0 +1,2 @@
+/* The original art direction used extremely small display type. Keep the hierarchy, but scale the full interface to a readable baseline. */
+body{zoom:1.16}@media(max-width:720px){body{zoom:1.08}}

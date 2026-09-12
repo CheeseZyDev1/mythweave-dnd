@@ -8,6 +8,7 @@ import { abilityModifier, finalStats, pointBuyUsed, startingHp } from "../../../
 import { CharacterAvatar } from "../character-avatar";
 
 const STEP_LABELS = ["ตัวตนและเผ่า", "เส้นทางอาชีพ", "รูปลักษณ์", "ค่าสถานะ"];
+type CreatedCharacter={id:string;starterItems:Array<{quantity:number;content_items:{name_th:string;category:string;rarity:string}}>;starterSkills:Array<{id:number;name_th:string;description_th:string;effect_type:string}>};
 
 export function CharacterCreator({dimensions}:{dimensions:Array<{id:string;slug:string;name_th:string;difficulty_label_th:string;accent_color:string}>}) {
   const router = useRouter();
@@ -20,6 +21,8 @@ export function CharacterCreator({dimensions}:{dimensions:Array<{id:string;slug:
   const [stats, setStats] = useState<Stats>(DEFAULT_STATS);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const[created,setCreated]=useState<CreatedCharacter|null>(null);
+  const[copied,setCopied]=useState(false);
 
   const selectedRace = RACES.find((item) => item.id === race) ?? RACES[0];
   const selectedClass = CLASSES.find((item) => item.id === characterClass) ?? CLASSES[0];
@@ -27,6 +30,14 @@ export function CharacterCreator({dimensions}:{dimensions:Array<{id:string;slug:
   const remaining = 27 - used;
   const totals = useMemo(() => finalStats(stats, race), [stats, race]);
   const hp = startingHp(characterClass, totals);
+  const portraitPrompt=useMemo(()=>{
+    const skin=APPEARANCE_OPTIONS.skinTone.find(item=>item.id===appearance.skinTone)?.label;
+    const hairStyle=APPEARANCE_OPTIONS.hairStyle.find(item=>item.id===appearance.hairStyle)?.label;
+    const hairColor=APPEARANCE_OPTIONS.hairColor.find(item=>item.id===appearance.hairColor)?.label;
+    const face=APPEARANCE_OPTIONS.face.find(item=>item.id===appearance.face)?.label;
+    const body=APPEARANCE_OPTIONS.body.find(item=>item.id===appearance.body)?.label;
+    return `Create a premium dark-fantasy RPG character portrait for ${name.trim()||"an unnamed adventurer"}, a ${selectedRace.label} ${selectedClass.label}. ${skin} skin tone, ${hairStyle} hairstyle, ${hairColor} hair, ${face} facial structure, ${body} build. ${selectedClass.description}. Cinematic painterly realism, intricate fantasy costume appropriate to the class, expressive face, dramatic rim lighting, atmospheric ${appearance.portraitBackdrop??"forest"} background, centered single character, vertical 3:4 composition, sharp readable silhouette suitable for a tabletop token, high detail. No text, no logo, no watermark, no extra people, no cropped head or hands.`;
+  },[appearance,characterClass,name,race,selectedClass,selectedRace]);
 
   function chooseRace(nextRace: string) {
     setRace(nextRace);
@@ -45,6 +56,11 @@ export function CharacterCreator({dimensions}:{dimensions:Array<{id:string;slug:
       const next = { ...current, [key]: nextValue };
       return pointBuyUsed(next) <= 27 ? next : current;
     });
+  }
+
+  function randomAppearance(){
+    const pick=<T,>(items:readonly T[])=>items[Math.floor(Math.random()*items.length)];
+    setAppearance({skinTone:pick(APPEARANCE_OPTIONS.skinTone).id,hairStyle:pick(APPEARANCE_OPTIONS.hairStyle).id,hairColor:pick(APPEARANCE_OPTIONS.hairColor).id,face:pick(APPEARANCE_OPTIONS.face).id,body:pick(APPEARANCE_OPTIONS.body).id,portraitBackdrop:pick(APPEARANCE_OPTIONS.portraitBackdrop).id,portraitFrame:pick(APPEARANCE_OPTIONS.portraitFrame).id,portraitSigil:pick(APPEARANCE_OPTIONS.portraitSigil).id});
   }
 
   function nextStep() {
@@ -75,12 +91,12 @@ export function CharacterCreator({dimensions}:{dimensions:Array<{id:string;slug:
       setSaving(false);
       return;
     }
-    router.replace("/lobby?created=1");
-    router.refresh();
+    setCreated(result as CreatedCharacter);setSaving(false);
   }
 
   return (
     <main className="creator-shell">
+      {created&&<div className="creator-complete"role="dialog"aria-modal="true"><section><small>CHARACTER AWAKENED</small><h2>{name} พร้อมออกเดินทางแล้ว</h2><p>ระบบสุ่มชุดกำเนิดและสกิลประจำตัวให้เรียบร้อย</p><div className="birth-loadout"><article><b>ไอเทมแรกเกิด</b>{created.starterItems.map((entry,index)=><span key={index}>{entry.content_items.name_th} ×{entry.quantity}</span>)}</article><article><b>สกิลที่ติดตัว</b>{created.starterSkills.map(skill=><span key={skill.id}>{skill.name_th}</span>)}</article></div><label className="portrait-prompt"><b>Prompt สำหรับสร้างภาพด้วย AI</b><textarea readOnly value={portraitPrompt}/></label><div className="complete-actions"><button onClick={async()=>{await navigator.clipboard.writeText(portraitPrompt);setCopied(true)}}>{copied?"คัดลอกแล้ว ✓":"คัดลอก Prompt"}</button><button className="primary"onClick={()=>{router.replace(`/characters/${created.id}`);router.refresh()}}>ไปอัปโหลดรูปตัวละคร →</button></div></section></div>}
       <header className="creator-topbar">
         <Link href="/lobby">← กลับล็อบบี้</Link>
         <span>MYTHWEAVE · CHARACTER FORGE</span>
@@ -100,7 +116,7 @@ export function CharacterCreator({dimensions}:{dimensions:Array<{id:string;slug:
             <div className="class-grid">{CLASSES.map((item) => <button className={characterClass === item.id ? "selected" : ""} key={item.id} onClick={() => setCharacterClass(item.id)} type="button" style={{ "--class-color": item.color } as React.CSSProperties}><b>{item.icon}</b><span><strong>{item.label}</strong><small>{item.role}</small><em>{item.description}</em></span><i>d{item.hitDie}</i></button>)}</div>
           </div>}
           {step === 2 && <div className="creator-stage">
-            <span className="creator-kicker">03 · APPEARANCE</span><h1>สลักใบหน้าของตำนาน</h1><p>รูปลักษณ์นี้จะกลายเป็น portrait และไอคอนประจำตัวของคุณบนแผนที่</p>
+            <span className="creator-kicker">03 · APPEARANCE</span><h1>สลักใบหน้าของตำนาน</h1><p>รูปลักษณ์นี้จะกลายเป็น portrait และไอคอนประจำตัวของคุณบนแผนที่</p><button className="random-appearance"onClick={randomAppearance}type="button">✦ สุ่มรูปลักษณ์ทั้งหมด</button>
             <div className="appearance-groups">
               <AppearanceChoices title="สีผิว" items={APPEARANCE_OPTIONS.skinTone} selected={appearance.skinTone} onSelect={(value) => changeAppearance("skinTone", value as Appearance["skinTone"])} colors />
               <AppearanceChoices title="ทรงผม" items={APPEARANCE_OPTIONS.hairStyle} selected={appearance.hairStyle} onSelect={(value) => changeAppearance("hairStyle", value as Appearance["hairStyle"])} />
@@ -113,7 +129,7 @@ export function CharacterCreator({dimensions}:{dimensions:Array<{id:string;slug:
             </div>
           </div>}
           {step === 3 && <div className="creator-stage">
-            <span className="creator-kicker">04 · ATTRIBUTES</span><h1>แบ่งแต้มกำหนดชะตา</h1><p>ใช้แต้มทั้ง 27 แต้ม ค่าพื้นฐานสูงสุด 15 ก่อนรับโบนัสจากเผ่า</p>
+            <span className="creator-kicker">04 · ATTRIBUTES</span><h1>แบ่งแต้มกำหนดชะตา</h1><p>ใช้แต้มทั้ง 27 แต้ม ค่าพื้นฐานสูงสุด 15 ก่อนรับโบนัสจากเผ่า · เมื่อเกิด ระบบจะสุ่มอาวุธ อุปกรณ์ และ 3 สกิลจากคลังประจำคลาสให้ทันที</p>
             <div className={`point-budget ${remaining === 0 ? "complete" : ""}`}><span>แต้มคงเหลือ</span><strong>{remaining}</strong><small>/ 27</small></div>
             <div className="stats-builder">{STAT_KEYS.map((key) => { const bonus = totals[key] - stats[key]; const modifier = abilityModifier(totals[key]); return <article key={key}><div><b>{STAT_LABELS[key].short}</b><span>{STAT_LABELS[key].label}</span></div><button disabled={stats[key] <= 8} onClick={() => changeStat(key, -1)} type="button">−</button><strong>{stats[key]}</strong><button disabled={stats[key] >= 15 || pointBuyUsed({ ...stats, [key]: stats[key] + 1 }) > 27} onClick={() => changeStat(key, 1)} type="button">+</button><em>{bonus > 0 ? `+${bonus} เผ่า` : "—"}</em><i>รวม {totals[key]} ({modifier >= 0 ? "+" : ""}{modifier})</i></article>})}</div>
           </div>}

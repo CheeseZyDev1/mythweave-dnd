@@ -45,5 +45,11 @@ export async function POST(request: Request) {
   }).select("id").single();
 
   if (error) return NextResponse.json({ error: "save_failed" }, { status: 500 });
-  return NextResponse.json({ id: data.id }, { status: 201 });
+  const[{data:starterItems},{data:starterSkills}]=await Promise.all([
+    supabase.from("character_item_stacks").select("quantity,content_items!inner(name_th,category,rarity)").eq("character_id",data.id).neq("content_items.rarity","soulbound"),
+    supabase.from("character_skills").select("skill_definitions(id,name_th,description_th,effect_type)").eq("character_id",data.id),
+  ]);
+  const normalizedItems=(starterItems??[]).flatMap(item=>{const details=Array.isArray(item.content_items)?item.content_items[0]:item.content_items;return details?[{quantity:item.quantity,content_items:details}]:[]});
+  const normalizedSkills=(starterSkills??[]).flatMap(item=>item.skill_definitions??[]);
+  return NextResponse.json({id:data.id,starterItems:normalizedItems,starterSkills:normalizedSkills}, { status: 201 });
 }

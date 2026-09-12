@@ -28,7 +28,7 @@ export default async function CharacterSheetPage({ params }: Props) {
     supabase.from("status_effect_templates").select("id,name_th,effect_type,description_th,default_duration,max_stacks").order("effect_type").order("id"),
     supabase.from("character_status_effects").select("id,template_id,name_th,effect_type,description_th,duration_remaining,stacks,source").eq("character_id",id).order("applied_at"),
     supabase.from("character_innate_abilities").select("assigned_at,innate_abilities(name_th,description_th,activation,effect_key,effect_value,usage_rule_th)").eq("character_id",id).maybeSingle(),
-    supabase.from("skill_definitions").select("id,name_th,description_th,action_type,effect_type,dice_count,dice_sides,modifier_stat,max_uses,recharge,required_level").eq("class_id",character.character_class).lte("required_level",character.level).order("sort_order"),
+    supabase.from("character_skills").select("skill_definitions(id,name_th,description_th,action_type,effect_type,dice_count,dice_sides,modifier_stat,max_uses,recharge,required_level,sort_order)").eq("character_id",id),
   ]);
 
   const stats: Stats = {
@@ -42,7 +42,8 @@ export default async function CharacterSheetPage({ params }: Props) {
 
   const innate = innateAssignment?.innate_abilities as unknown as {name_th:string;description_th:string;activation:string;effect_key:string;effect_value:number;usage_rule_th:string}|null;
   const{data:stamina}=await supabase.rpc("get_character_stamina",{target_character_id:id});
-  return <><CharacterSheet skills={skills??[]} innate={innate} statuses={{templates:statusTemplates??[],effects:statusEffects??[]}} wallet={{balance:wallet?.balance_copper??0,transactions:(transactions??[]) as WalletTransaction[]}} character={{
+  const assignedSkills=(skills??[]).flatMap(item=>item.skill_definitions??[]).sort((a,b)=>Number(a.sort_order??0)-Number(b.sort_order??0));
+  return <><CharacterSheet skills={assignedSkills} innate={innate} statuses={{templates:statusTemplates??[],effects:statusEffects??[]}} wallet={{balance:wallet?.balance_copper??0,transactions:(transactions??[]) as WalletTransaction[]}} character={{
     id: character.id,
     name: character.name,
     race: character.race,
