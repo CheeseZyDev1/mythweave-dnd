@@ -29,7 +29,27 @@ export const CLASSES = [
   { id: "paladin", label: "พาลาดิน", icon: "♜", role: "ป้องกัน/ศักดิ์สิทธิ์", description: "อัศวินแห่งคำสัตย์ ปกป้องปาร์ตี้ด้วยเกราะและแสง", hitDie: 10, primary: "charisma" as StatKey, color: "#d1b66a" },
   { id: "bard", label: "กวี", icon: "♪", role: "สนับสนุน/ควบคุม", description: "ใช้ถ้อยคำ ดนตรี และมนตร์เสน่ห์เปลี่ยนชะตาการต่อสู้", hitDie: 8, primary: "charisma" as StatKey, color: "#9a587f" },
   { id: "druid", label: "ดรูอิด", icon: "❧", role: "ธรรมชาติ/แปลงร่าง", description: "เรียกพลังธรรมชาติ รักษาบาดแผล และแปลงกายเป็นสัตว์", hitDie: 8, primary: "wisdom" as StatKey, color: "#477a67" },
+  { id: "barbarian", label: "เบอร์เซิร์กเกอร์", icon: "▲", role: "พลังโจมตี/รับความเสียหาย", description: "ใช้แรงโทสะและสัญชาตญาณดิบทะลวงแนวศัตรู", hitDie: 12, primary: "strength" as StatKey, color: "#a7473b" },
+  { id: "monk", label: "นักพรต", icon: "☸", role: "จู่โจม/ควบคุม", description: "ฝึกกายและลมหายใจให้เคลื่อนไหวเหนือขีดจำกัด", hitDie: 8, primary: "dexterity" as StatKey, color: "#b58b4b" },
+  { id: "sorcerer", label: "จอมเวทสายเลือด", icon: "✦", role: "เวทดิบ/ระเบิดพลัง", description: "ดึงมนตราจากสายเลือดโดยไม่ต้องพึ่งตำรา", hitDie: 6, primary: "charisma" as StatKey, color: "#9b4e82" },
+  { id: "warlock", label: "ผู้ทำพันธสัญญา", icon: "☽", role: "คำสาป/เวทเงา", description: "ยืมพลังจากสิ่งลึกลับแลกกับพันธะที่ต้องรักษา", hitDie: 8, primary: "charisma" as StatKey, color: "#67518e" },
+  { id: "artificer", label: "นักประดิษฐ์เวท", icon: "⚙", role: "อุปกรณ์/สนับสนุน", description: "หลอมเวทมนตร์เข้ากับกลไกและเครื่องมือสนามรบ", hitDie: 8, primary: "intelligence" as StatKey, color: "#537b83" },
+  { id: "necromancer", label: "นักเวทวิญญาณ", icon: "☠", role: "วิญญาณ/ควบคุม", description: "ศึกษารอยต่อชีวิต ความตาย และความทรงจำตกค้าง", hitDie: 6, primary: "intelligence" as StatKey, color: "#596458" },
 ] as const;
+
+export const PROFESSIONS=[
+  {id:"chef",label:"เชฟ",icon:"♨",bonus:"ปรุงอาหารสำเร็จเพิ่ม 5–10%",description:"ดึงรสชาติและคุณค่าจากวัตถุดิบ"},
+  {id:"chronicler",label:"นักจดบันทึก",icon:"✎",bonus:"ค้นพบความรู้เพิ่ม 5–10%",description:"เก็บรายละเอียดอสูร ภาษา และเบาะแส"},
+  {id:"blacksmith",label:"ช่างตีเหล็ก",icon:"⚒",bonus:"ตีบวกอุปกรณ์เพิ่ม 5–10%",description:"เข้าใจโลหะ อาวุธ และชุดเกราะ"},
+  {id:"alchemist",label:"นักเล่นแร่แปรธาตุ",icon:"⚗",bonus:"ปรุงยาเพิ่ม 5–10%",description:"ควบคุมสารสกัดและปฏิกิริยาเวท"},
+  {id:"merchant",label:"พ่อค้า",icon:"¤",bonus:"ต่อรองราคาเพิ่ม 5–10%",description:"ประเมินราคาและรักษาความสัมพันธ์"},
+  {id:"scout",label:"นักสอดแนม",icon:"⌖",bonus:"ลดความเสี่ยงเดินทาง 5–10%",description:"อ่านทาง ร่องรอย และภัยซุ่มซ่อน"},
+  {id:"cartographer",label:"นักทำแผนที่",icon:"⌑",bonus:"ค้นพบจุดสำรวจเพิ่ม 5–10%",description:"บันทึกภูมิประเทศและเส้นทางลัด"},
+  {id:"rune_scholar",label:"นักอักษรรูน",icon:"ᚱ",bonus:"เริ่มพร้อมความรู้ภาษารูน",description:"อ่านและประยุกต์อักขระโบราณกับสกิล"},
+]as const;
+
+const CLASS_LINKS=[['fighter','barbarian'],['fighter','paladin'],['fighter','ranger'],['ranger','rogue'],['ranger','druid'],['wizard','artificer'],['wizard','necromancer'],['cleric','paladin'],['cleric','druid'],['rogue','bard'],['paladin','warlock'],['bard','sorcerer'],['druid','barbarian'],['monk','rogue'],['monk','cleric'],['sorcerer','warlock'],['artificer','rogue'],['necromancer','warlock']]as const;
+export function compatibleSecondaryClasses(primary:string){return CLASSES.filter(candidate=>CLASS_LINKS.some(pair=>pair.includes(primary as never)&&pair.includes(candidate.id as never)))}
 
 export const APPEARANCE_OPTIONS = {
   skinTone: [
@@ -93,3 +113,5 @@ export const DEFAULT_APPEARANCE: Appearance = { skinTone: "warm", hairStyle: "sh
 
 export function findRace(id: string) { return RACES.find((race) => race.id === id); }
 export function findClass(id: string) { return CLASSES.find((item) => item.id === id); }
+export function findProfession(id:string){return PROFESSIONS.find(item=>item.id===id)}
+export function isCompatibleClass(primary:string,secondary:string){return compatibleSecondaryClasses(primary).some(item=>item.id===secondary)}

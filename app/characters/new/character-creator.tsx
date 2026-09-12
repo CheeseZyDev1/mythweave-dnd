@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { APPEARANCE_OPTIONS, CLASSES, DEFAULT_APPEARANCE, DEFAULT_STATS, RACES, STAT_KEYS, STAT_LABELS, type Appearance, type StatKey, type Stats } from "../../../lib/characters/catalog";
+import { APPEARANCE_OPTIONS, CLASSES, compatibleSecondaryClasses, DEFAULT_APPEARANCE, DEFAULT_STATS, PROFESSIONS, RACES, STAT_KEYS, STAT_LABELS, type Appearance, type StatKey, type Stats } from "../../../lib/characters/catalog";
 import { abilityModifier, finalStats, pointBuyUsed, STARTING_POINT_BUDGET, STARTING_STAT_MAX, startingHp } from "../../../lib/characters/rules";
 import { CharacterAvatar } from "../character-avatar";
 
@@ -17,6 +17,8 @@ export function CharacterCreator({dimensions}:{dimensions:Array<{id:string;slug:
   const [dimensionId,setDimensionId]=useState(dimensions[0]?.id??"");
   const [race, setRace] = useState("human");
   const [characterClass, setCharacterClass] = useState("fighter");
+  const [secondaryClass,setSecondaryClass]=useState("");
+  const [profession,setProfession]=useState("chronicler");
   const [appearance, setAppearance] = useState<Appearance>(DEFAULT_APPEARANCE);
   const [stats, setStats] = useState<Stats>(DEFAULT_STATS);
   const [saving, setSaving] = useState(false);
@@ -26,6 +28,9 @@ export function CharacterCreator({dimensions}:{dimensions:Array<{id:string;slug:
 
   const selectedRace = RACES.find((item) => item.id === race) ?? RACES[0];
   const selectedClass = CLASSES.find((item) => item.id === characterClass) ?? CLASSES[0];
+  const selectedSecondary=CLASSES.find(item=>item.id===secondaryClass);
+  const secondaryOptions=compatibleSecondaryClasses(characterClass);
+  const selectedProfession=PROFESSIONS.find(item=>item.id===profession)??PROFESSIONS[0];
   const used = pointBuyUsed(stats);
   const remaining = STARTING_POINT_BUDGET - used;
   const totals = useMemo(() => finalStats(stats, race), [stats, race]);
@@ -36,8 +41,8 @@ export function CharacterCreator({dimensions}:{dimensions:Array<{id:string;slug:
     const hairColor=APPEARANCE_OPTIONS.hairColor.find(item=>item.id===appearance.hairColor)?.label;
     const face=APPEARANCE_OPTIONS.face.find(item=>item.id===appearance.face)?.label;
     const body=APPEARANCE_OPTIONS.body.find(item=>item.id===appearance.body)?.label;
-    return `Create a premium dark-fantasy RPG character portrait for ${name.trim()||"an unnamed adventurer"}, a ${selectedRace.label} ${selectedClass.label}. ${skin} skin tone, ${hairStyle} hairstyle, ${hairColor} hair, ${face} facial structure, ${body} build. ${selectedClass.description}. Cinematic painterly realism, intricate fantasy costume appropriate to the class, expressive face, dramatic rim lighting, atmospheric ${appearance.portraitBackdrop??"forest"} background, centered single character, vertical 3:4 composition, sharp readable silhouette suitable for a tabletop token, high detail. No text, no logo, no watermark, no extra people, no cropped head or hands.`;
-  },[appearance,characterClass,name,race,selectedClass,selectedRace]);
+    return `Create a premium dark-fantasy RPG character portrait for ${name.trim()||"an unnamed adventurer"}, a ${selectedRace.label} ${selectedClass.label}${selectedSecondary?` / ${selectedSecondary.label}`:""}, with the life profession ${selectedProfession.label}. ${skin} skin tone, ${hairStyle} hairstyle, ${hairColor} hair, ${face} facial structure, ${body} build. ${selectedClass.description}. Cinematic painterly realism, intricate fantasy costume appropriate to both class and profession, expressive face, dramatic rim lighting, atmospheric ${appearance.portraitBackdrop??"forest"} background, centered single character, vertical 3:4 composition, sharp readable silhouette suitable for a tabletop token, high detail. No text, no logo, no watermark, no extra people, no cropped head or hands.`;
+  },[appearance,name,selectedClass,selectedProfession,selectedRace,selectedSecondary]);
 
   function chooseRace(nextRace: string) {
     setRace(nextRace);
@@ -82,7 +87,7 @@ export function CharacterCreator({dimensions}:{dimensions:Array<{id:string;slug:
     const response = await fetch("/api/characters", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, race, characterClass, appearance, stats,dimensionId }),
+      body: JSON.stringify({ name, race, characterClass,secondaryClass:secondaryClass||null,profession, appearance, stats,dimensionId }),
     });
     const result = await response.json().catch(() => ({}));
     if (!response.ok) {
@@ -113,7 +118,9 @@ export function CharacterCreator({dimensions}:{dimensions:Array<{id:string;slug:
           </div>}
           {step === 1 && <div className="creator-stage">
             <span className="creator-kicker">02 · CALLING</span><h1>เลือกเส้นทางแห่งการต่อสู้</h1><p>คลาสกำหนดบทบาทในปาร์ตี้ พลังชีวิตเริ่มต้น และค่าสถานะหลัก</p>
-            <div className="class-grid">{CLASSES.map((item) => <button className={characterClass === item.id ? "selected" : ""} key={item.id} onClick={() => setCharacterClass(item.id)} type="button" style={{ "--class-color": item.color } as React.CSSProperties}><b>{item.icon}</b><span><strong>{item.label}</strong><small>{item.role}</small><em>{item.description}</em></span><i>d{item.hitDie}</i></button>)}</div>
+            <div className="class-grid">{CLASSES.map((item) => <button className={characterClass === item.id ? "selected" : ""} key={item.id} onClick={() => {setCharacterClass(item.id);setSecondaryClass("")}} type="button" style={{ "--class-color": item.color } as React.CSSProperties}><b>{item.icon}</b><span><strong>{item.label}</strong><small>{item.role}</small><em>{item.description}</em></span><i>d{item.hitDie}</i></button>)}</div>
+            <section className="calling-builder"><div><small>OPTIONAL MULTICLASS</small><h2>ผสมสายต่อสู้ที่เข้ากันได้</h2><p>ได้รับสกิลเริ่มต้นจากคลาสรอง 1 สกิล โดย HP และตัวตนหลักยังยึดคลาสแรก</p></div><select value={secondaryClass}onChange={event=>setSecondaryClass(event.target.value)}><option value="">ไม่เลือกคลาสรอง</option>{secondaryOptions.map(item=><option value={item.id}key={item.id}>{item.icon} {item.label} · {item.role}</option>)}</select></section>
+            <section className="profession-builder"><div><small>LIFE PROFESSION</small><h2>เลือกวิชาชีพประจำชีวิต</h2><p>โบนัสเริ่มต้น 5% และเติบโตได้ถึง 10% ตามระดับความถนัด</p></div><div>{PROFESSIONS.map(item=><button className={profession===item.id?"selected":""}onClick={()=>setProfession(item.id)}key={item.id}type="button"><b>{item.icon}</b><span><strong>{item.label}</strong><small>{item.description}</small><em>{item.bonus}</em></span></button>)}</div></section>
           </div>}
           {step === 2 && <div className="creator-stage">
             <span className="creator-kicker">03 · APPEARANCE</span><h1>สลักใบหน้าของตำนาน</h1><p>รูปลักษณ์นี้จะกลายเป็น portrait และไอคอนประจำตัวของคุณบนแผนที่</p><button className="random-appearance"onClick={randomAppearance}type="button">✦ สุ่มรูปลักษณ์ทั้งหมด</button>
@@ -138,7 +145,7 @@ export function CharacterCreator({dimensions}:{dimensions:Array<{id:string;slug:
         </div>
         <aside className="creator-preview">
           <div className="avatar-frame"><CharacterAvatar appearance={appearance} characterClass={characterClass} name={name || "ผู้ไร้นาม"} race={race} /></div>
-          <span className="preview-kicker">LIVE PORTRAIT</span><h2>{name.trim() || "ผู้ไร้นาม"}</h2><p>{selectedRace.label} · {selectedClass.label}</p>
+          <span className="preview-kicker">LIVE PORTRAIT</span><h2>{name.trim() || "ผู้ไร้นาม"}</h2><p>{selectedRace.label} · {selectedClass.label}{selectedSecondary?` / ${selectedSecondary.label}`:""}</p><small className="preview-profession">{selectedProfession.icon} {selectedProfession.label} · {selectedProfession.bonus}</small>
           <div className="preview-vitals"><span><small>HP เริ่มต้น</small><strong>{hp}</strong></span><span><small>บทบาท</small><strong>{selectedClass.role}</strong></span></div>
           <blockquote>{selectedRace.description}</blockquote>
         </aside>

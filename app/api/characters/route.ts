@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "../../../lib/supabase/server";
-import { findClass, findRace } from "../../../lib/characters/catalog";
+import { findClass, findProfession, findRace, isCompatibleClass } from "../../../lib/characters/catalog";
 import { finalStats, isValidAppearance, isValidStats, startingHp } from "../../../lib/characters/rules";
 
 export async function POST(request: Request) {
@@ -14,9 +14,12 @@ export async function POST(request: Request) {
   const name = String(body.name ?? "").trim().replace(/\s+/g, " ");
   const race = String(body.race ?? "");
   const characterClass = String(body.characterClass ?? "");
+  const secondaryClass=body.secondaryClass?String(body.secondaryClass):null;
+  const profession=String(body.profession??"chronicler");
   const dimensionId = String(body.dimensionId ?? "");
   if (name.length < 2 || name.length > 24 || !/^[\p{L}\p{M}\p{N} ._'-]+$/u.test(name)) return NextResponse.json({ error: "invalid_name" }, { status: 400 });
   if (!findRace(race) || !findClass(characterClass)) return NextResponse.json({ error: "invalid_archetype" }, { status: 400 });
+  if(!findProfession(profession)||secondaryClass&&(!findClass(secondaryClass)||!isCompatibleClass(characterClass,secondaryClass)))return NextResponse.json({error:"invalid_calling"},{status:400});
   const{data:dimension}=await supabase.from("dimension_presets").select("id").eq("id",dimensionId).eq("active",true).maybeSingle();
   if(!dimension)return NextResponse.json({error:"invalid_dimension"},{status:400});
   if (!isValidStats(body.stats)) return NextResponse.json({ error: "invalid_stats" }, { status: 400 });
@@ -45,6 +48,8 @@ export async function POST(request: Request) {
   }).select("id").single();
 
   if (error) return NextResponse.json({ error: "save_failed" }, { status: 500 });
+  const{error:callingError}=await supabase.rpc("configure_character_calling",{target_character_id:data.id,target_secondary_class:secondaryClass,target_profession_id:profession});
+  if(callingError){await supabase.from("characters").delete().eq("id",data.id);return NextResponse.json({error:"calling_failed"},{status:500})}
   const[{data:starterItems},{data:starterSkills}]=await Promise.all([
     supabase.from("character_item_stacks").select("quantity,content_items!inner(name_th,category,rarity)").eq("character_id",data.id).neq("content_items.rarity","soulbound"),
     supabase.from("character_skills").select("skill_definitions(id,name_th,description_th,effect_type)").eq("character_id",data.id),

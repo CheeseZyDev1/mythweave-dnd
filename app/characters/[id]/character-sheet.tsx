@@ -165,6 +165,7 @@ export function CharacterSheet({ character, wallet, statuses, innate,skills }: {
           <Link className="wallet-shop-link" href={`/trade?character=${character.id}`}>แลกเปลี่ยนกับผู้เล่น →</Link>
           <Link className="wallet-shop-link" href={`/votes?character=${character.id}`}>สภาโหวตปาร์ตี้ →</Link>
           <Link className="wallet-shop-link" href={`/dungeons?character=${character.id}`}>Dungeon Generator →</Link>
+          <Link className="wallet-shop-link" href={`/progression?character=${character.id}`}>คลาสรอง อาชีพ สกิลผสม และรูน →</Link>
         </aside>
 
         <div className="sheet-main">
