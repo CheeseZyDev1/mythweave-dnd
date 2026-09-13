@@ -232,3 +232,43 @@
     animation-duration: 0.01ms;
   }
 }
+
+.demo-dice .demo-dice-cast {
+  width: 185px;
+  height: 150px;
+  flex: 0 0 185px;
+}
+
+.demo-dice .demo-dice-cast .animated-die {
+  width: 88px;
+  height: 88px;
+  margin: 0;
+  border-radius: 17px;
+}
+
+.demo-dice .demo-dice-cast .animated-die span {
+  transform: rotate(-45deg);
+  font-size: 30px;
+}
+
+.demo-dice .demo-dice-cast .roll-emote {
+  right: 2%;
+  top: 12px;
+  font-size: 42px;
+}
+
+.demo-dice .demo-dice-cast + button {
+  flex: 1;
+  min-width: 105px;
+}
+
+@media (max-width: 480px) {
+  .demo-dice {
+    flex-wrap: wrap;
+  }
+
+  .demo-dice .demo-dice-cast {
+    width: 100%;
+    flex-basis: 100%;
+  }
+}
