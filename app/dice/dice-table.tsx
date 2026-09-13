@@ -87,6 +87,7 @@ export function DiceTable({
   initialSkillUses,
   hasSessionRecaps,
   initialCombatDmMoments,
+  gatewayIntent,
 }: {
   initialTable: TableInfo | null;
   initialRolls: DiceRoll[];
@@ -113,6 +114,7 @@ export function DiceTable({
   initialSkillUses: SkillUse[];
   hasSessionRecaps: boolean;
   initialCombatDmMoments: CombatDmMoment[];
+  gatewayIntent: "create" | "join";
 }) {
   const [table] = useState(initialTable);
   const [rolls, setRolls] = useState(initialRolls);
@@ -240,6 +242,7 @@ export function DiceTable({
         characters={characters}
         ghostMode={ghostMode}
         invalidTable={invalidTable}
+        initialTab={gatewayIntent}
       />
     );
 

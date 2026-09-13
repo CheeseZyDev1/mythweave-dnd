@@ -77,8 +77,15 @@ try {
       headers: { Cookie: cookie },
     }),
     guestLobbyHtml = await guestLobby.text();
-  if (!guestLobby.ok || !guestLobbyHtml.includes("Guest Scribe"))
-    throw new Error("Saved guest character did not appear in lobby");
+  if (
+    !guestLobby.ok ||
+    !guestLobbyHtml.includes("Guest Scribe") ||
+    !guestLobbyHtml.includes("สร้างห้อง") ||
+    !guestLobbyHtml.includes("จอยห้อง")
+  )
+    throw new Error(
+      "Saved guest character or room actions did not appear in lobby",
+    );
   console.log(
     JSON.stringify({
       userId: data.user.id,
@@ -86,6 +93,7 @@ try {
       displayName: true,
       lobby: true,
       characterSaved: true,
+      roomActions: true,
     }),
   );
 } finally {

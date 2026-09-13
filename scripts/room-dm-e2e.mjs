@@ -107,6 +107,16 @@ const joined = await post(guest, "/api/dice/tables", {
 });
 if (joined.response.status !== 200)
   throw new Error(`Player join failed ${JSON.stringify(joined.body)}`);
+const lobbyHtml = await fetch(`${appUrl}/lobby`, {
+  headers: { Cookie: host.cookie() },
+}).then((response) => response.text());
+if (
+  !lobbyHtml.includes("ห้องที่เคยเข้าร่วม") ||
+  !lobbyHtml.includes(room.body.code) ||
+  !lobbyHtml.includes("Host") ||
+  !lobbyHtml.includes("Guest")
+)
+  throw new Error("Private member room list missing from lobby");
 const narration = await post(host, "/api/dm/manual", {
   tableId: room.body.tableId,
   narration: "เสียงใบไม้ไหวเตือนว่ามีบางสิ่งกำลังเข้ามาใกล้",
@@ -136,6 +146,8 @@ console.log(
   JSON.stringify({
     userIds: ids,
     guidedRoomSetup: true,
+    lobbyRoomActions: true,
+    privateMemberRoomList: true,
     humanDm: true,
     subscriptionDm: true,
     apiDm: true,

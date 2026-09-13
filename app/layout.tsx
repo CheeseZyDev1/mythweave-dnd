@@ -48,6 +48,7 @@ import "./theme-controller.css";
 import { ThemeController } from "./theme-controller";
 import "./sound-controller.css";
 import "./dice-effects.css";
+import "./lobby-rooms.css";
 import { SoundController } from "./sound-controller";
 import "./motion-experience.css";
 import "./new-player-systems.css";
