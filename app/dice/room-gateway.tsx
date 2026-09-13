@@ -27,17 +27,23 @@ export function RoomGateway({
   ghostMode,
   invalidTable,
   initialTab = "create",
+  initialCharacterId,
 }: {
   characters: { id: string; name: string }[];
   ghostMode: boolean;
   invalidTable: boolean;
   initialTab?: "create" | "join";
+  initialCharacterId?: string;
 }) {
   const router = useRouter();
   const [tab, setTab] = useState<"create" | "join">(
     ghostMode ? "join" : initialTab,
   );
-  const [characterId, setCharacterId] = useState(characters[0]?.id ?? "");
+  const [characterId, setCharacterId] = useState(
+    characters.some((character) => character.id === initialCharacterId)
+      ? (initialCharacterId ?? "")
+      : (characters[0]?.id ?? ""),
+  );
   const [dmMode, setDmMode] = useState<DmMode>("human");
   const [joinRole, setJoinRole] = useState<"player" | "spectator">(
     ghostMode ? "spectator" : "player",

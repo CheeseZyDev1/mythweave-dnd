@@ -80,6 +80,7 @@ const make = (client, name) =>
     },
   });
 const hostCharacter = await make(host, "Room Captain");
+const hostAlternate = await make(host, "Room Scout");
 const guestCharacter = await make(guest, "Room Guest");
 const room = await post(host, "/api/dice/tables", {
   action: "create",
@@ -88,6 +89,35 @@ const room = await post(host, "/api/dice/tables", {
 });
 if (room.response.status !== 201 || room.body.dmMode !== "subscription")
   throw new Error("Configured room creation failed");
+const selectedAlternate = await post(host, "/api/dice/tables", {
+  action: "select_character",
+  tableId: room.body.tableId,
+  characterId: hostAlternate.body.id,
+});
+if (!selectedAlternate.response.ok)
+  throw new Error("Room member could not select another owned character");
+const { data: selectedMember } = await host.client
+  .from("dice_table_members")
+  .select("character_id")
+  .eq("table_id", room.body.tableId)
+  .eq("user_id", (await host.client.auth.getUser()).data.user.id)
+  .single();
+if (selectedMember.character_id !== hostAlternate.body.id)
+  throw new Error("Selected room character did not persist");
+const foreignSelection = await post(guest, "/api/dice/tables", {
+  action: "select_character",
+  tableId: room.body.tableId,
+  characterId: hostAlternate.body.id,
+});
+if (foreignSelection.response.status !== 404)
+  throw new Error("Another account selected a character it does not own");
+const restoredHost = await post(host, "/api/dice/tables", {
+  action: "select_character",
+  tableId: room.body.tableId,
+  characterId: hostCharacter.body.id,
+});
+if (!restoredHost.response.ok)
+  throw new Error("Room member could not restore their original character");
 const forbidden = await post(guest, "/api/dice/tables", {
   action: "join",
   code: room.body.code,

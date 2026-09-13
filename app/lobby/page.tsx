@@ -10,6 +10,10 @@ import {
 } from "../../lib/characters/catalog";
 import { CharacterAvatar } from "../characters/character-avatar";
 import { LogoutButton } from "./logout-button";
+import {
+  ExistingRoomCharacterPicker,
+  NewRoomCharacterPicker,
+} from "./room-character-controls";
 
 export const metadata: Metadata = { title: "ล็อบบี้ — Mythweave" };
 
@@ -31,11 +35,13 @@ export default async function LobbyPage() {
   const [{ data: characters }, { data: ownMemberships }] = await Promise.all([
     supabase
       .from("characters")
-      .select("id,name,race,character_class,level,hp_current,hp_max,appearance")
+      .select(
+        "id,name,race,character_class,level,hp_current,hp_max,appearance,dimension_id",
+      )
       .order("created_at", { ascending: false }),
     supabase
       .from("dice_table_members")
-      .select("table_id,role,joined_at")
+      .select("table_id,role,joined_at,character_id")
       .eq("user_id", user.id)
       .order("joined_at", { ascending: false })
       .limit(8),
@@ -45,7 +51,7 @@ export default async function LobbyPage() {
     ? await Promise.all([
         supabase
           .from("dice_tables")
-          .select("id,code,dm_mode,created_at")
+          .select("id,code,dm_mode,created_at,dimension_id")
           .in("id", roomIds),
         supabase
           .from("dice_table_members")
@@ -61,6 +67,7 @@ export default async function LobbyPage() {
           {
             ...room,
             ownRole: membership.role,
+            character_id: membership.character_id,
             members: (roomMembers ?? []).filter(
               (member) => member.table_id === room.id,
             ),
@@ -103,22 +110,7 @@ export default async function LobbyPage() {
             <p>สร้างห้องส่วนตัว หรือกรอกรหัสที่หัวปาร์ตี้ส่งมาให้</p>
           </div>
           {characters?.length ? (
-            <nav>
-              <Link className="create" href="/dice?action=create">
-                <b>＋</b>
-                <span>
-                  <strong>สร้างห้อง</strong>
-                  <small>เป็นหัวปาร์ตี้และรับรหัสเชิญ</small>
-                </span>
-              </Link>
-              <Link href="/dice?action=join">
-                <b>→</b>
-                <span>
-                  <strong>จอยห้อง</strong>
-                  <small>เข้าด้วยรหัสจากเพื่อน</small>
-                </span>
-              </Link>
-            </nav>
+            <NewRoomCharacterPicker characters={characters} />
           ) : (
             <Link className="need-character" href="/characters/new">
               สร้างตัวละครก่อนเปิดหรือจอยห้อง →
@@ -167,7 +159,14 @@ export default async function LobbyPage() {
                       </i>
                     ))}
                   </div>
-                  <Link href={`/dice?table=${room.id}`}>กลับเข้าห้อง →</Link>
+                  <ExistingRoomCharacterPicker
+                    tableId={room.id}
+                    initialCharacterId={room.character_id}
+                    characters={(characters ?? []).filter(
+                      (character) =>
+                        character.dimension_id === room.dimension_id,
+                    )}
+                  />
                 </article>
               ))}
             </div>

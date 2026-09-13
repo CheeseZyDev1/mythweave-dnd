@@ -28,7 +28,13 @@ import type { CombatDmMoment } from "../../lib/combat/dm-moments";
 
 export const metadata: Metadata = { title: "Realtime Dice — Mythweave" };
 
-type Props = { searchParams: Promise<{ table?: string; action?: string }> };
+type Props = {
+  searchParams: Promise<{
+    table?: string;
+    action?: string;
+    character?: string;
+  }>;
+};
 type BattleMemberRow = {
   user_id: string;
   display_name: string;
@@ -81,8 +87,17 @@ export default async function DicePage({ searchParams }: Props) {
     if (!ghostMode) redirect(`/solo?character=${activeSolo.character_id}`);
   }
 
-  const { table: tableId, action } = await searchParams;
+  const {
+    table: tableId,
+    action,
+    character: requestedCharacterId,
+  } = await searchParams;
   const gatewayIntent = action === "join" ? "join" : "create";
+  const initialCharacterId = (ownedCharacters ?? []).some(
+    (character) => character.id === requestedCharacterId,
+  )
+    ? requestedCharacterId
+    : undefined;
   let table: {
     id: string;
     code: string;
@@ -326,6 +341,7 @@ export default async function DicePage({ searchParams }: Props) {
       initialCombatDmMoments={combatDmMoments}
       hasSessionRecaps={hasSessionRecaps}
       gatewayIntent={gatewayIntent}
+      initialCharacterId={initialCharacterId}
     />
   );
 }
