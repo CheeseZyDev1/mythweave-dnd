@@ -2,7 +2,15 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { APPEARANCE_OPTIONS,findClass, findRace, STAT_KEYS, STAT_LABELS, type Appearance, type Stats } from "../../../lib/characters/catalog";
+import {
+  APPEARANCE_OPTIONS,
+  findClass,
+  findRace,
+  STAT_KEYS,
+  STAT_LABELS,
+  type Appearance,
+  type Stats,
+} from "../../../lib/characters/catalog";
 import { abilityModifier } from "../../../lib/characters/rules";
 import type { InventoryItem } from "../../../lib/characters/sheet";
 import { CharacterAvatar } from "../character-avatar";
@@ -24,7 +32,19 @@ type Character = {
   inventory: InventoryItem[];
   updatedAt: string;
 };
-type SheetSkill={id:number;name_th:string;description_th:string;action_type:string;effect_type:string;dice_count:number;dice_sides:number|null;modifier_stat:string|null;max_uses:number;recharge:string;required_level:number};
+type SheetSkill = {
+  id: number;
+  name_th: string;
+  description_th: string;
+  action_type: string;
+  effect_type: string;
+  dice_count: number;
+  dice_sides: number | null;
+  modifier_stat: string | null;
+  max_uses: number;
+  recharge: string;
+  required_level: number;
+};
 
 const errorMessages: Record<string, string> = {
   invalid_hp: "ค่า HP ไม่ถูกต้อง",
@@ -32,77 +52,190 @@ const errorMessages: Record<string, string> = {
   invalid_inventory: "กรุณาตรวจชื่อ จำนวน และรายละเอียดสิ่งของ",
   not_found: "ไม่พบตัวละครนี้ หรือคุณไม่มีสิทธิ์แก้ไข",
   save_failed: "บันทึกไม่สำเร็จ กรุณาลองอีกครั้ง",
-  invalid_appearance:"รูปแบบ Portrait ไม่ถูกต้อง",
+  invalid_appearance: "รูปแบบ Portrait ไม่ถูกต้อง",
 };
 
 function signed(value: number) {
   return value >= 0 ? `+${value}` : String(value);
 }
 
-export function CharacterSheet({ character, wallet, statuses, innate,skills,blessing }: { character: Character; skills:SheetSkill[]; blessing:{tier:number;name_th:string;deity_th:string;description_th:string;effect_key:string;last_triggered_at:string|null;trigger_count:number}|null; innate: {name_th:string;description_th:string;activation:string;effect_key:string;effect_value:number;usage_rule_th:string}|null; wallet: { balance: number; transactions: WalletTransaction[] }; statuses: { templates: Array<{id:number;name_th:string;effect_type:string;description_th:string;default_duration:number;max_stacks:number}>; effects: Array<{id:string;template_id:number;name_th:string;effect_type:string;description_th:string;duration_remaining:number;stacks:number;source:string}> } }) {
+export function CharacterSheet({
+  character,
+  wallet,
+  statuses,
+  innate,
+  skills,
+  blessing,
+}: {
+  character: Character;
+  skills: SheetSkill[];
+  blessing: {
+    tier: number;
+    name_th: string;
+    deity_th: string;
+    description_th: string;
+    effect_key: string;
+    last_triggered_at: string | null;
+    trigger_count: number;
+  } | null;
+  innate: {
+    name_th: string;
+    description_th: string;
+    activation: string;
+    effect_key: string;
+    effect_value: number;
+    usage_rule_th: string;
+  } | null;
+  wallet: { balance: number; transactions: WalletTransaction[] };
+  statuses: {
+    templates: Array<{
+      id: number;
+      name_th: string;
+      effect_type: string;
+      description_th: string;
+      default_duration: number;
+      max_stacks: number;
+    }>;
+    effects: Array<{
+      id: string;
+      template_id: number;
+      name_th: string;
+      effect_type: string;
+      description_th: string;
+      duration_remaining: number;
+      stacks: number;
+      source: string;
+    }>;
+  };
+}) {
   const [stats, setStats] = useState(character.stats);
   const [hpCurrent, setHpCurrent] = useState(character.hpCurrent);
   const [hpMax, setHpMax] = useState(character.hpMax);
   const [inventory, setInventory] = useState(character.inventory);
-  const[appearance,setAppearance]=useState(character.appearance);
-  const[portraitFile,setPortraitFile]=useState<File|null>(null);
-  const[portraitPreview,setPortraitPreview]=useState("");
-  const[portraitBusy,setPortraitBusy]=useState(false);
-  const[portraitMessage,setPortraitMessage]=useState("");
-  const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [appearance, setAppearance] = useState(character.appearance);
+  const [portraitFile, setPortraitFile] = useState<File | null>(null);
+  const [portraitPreview, setPortraitPreview] = useState("");
+  const [portraitBusy, setPortraitBusy] = useState(false);
+  const [portraitMessage, setPortraitMessage] = useState("");
+  const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">(
+    "idle",
+  );
   const [message, setMessage] = useState("");
   const race = findRace(character.race);
   const selectedClass = findClass(character.characterClass);
   const proficiency = 2 + Math.floor((character.level - 1) / 4);
   const armorClass = 10 + abilityModifier(stats.dexterity);
   const passivePerception = 10 + abilityModifier(stats.wisdom);
-  const hpPercent = useMemo(() => Math.max(0, Math.min(100, hpMax ? (hpCurrent / hpMax) * 100 : 0)), [hpCurrent, hpMax]);
+  const hpPercent = useMemo(
+    () => Math.max(0, Math.min(100, hpMax ? (hpCurrent / hpMax) * 100 : 0)),
+    [hpCurrent, hpMax],
+  );
 
-  useEffect(()=>()=>{if(portraitPreview)URL.revokeObjectURL(portraitPreview)},[portraitPreview]);
+  useEffect(
+    () => () => {
+      if (portraitPreview) URL.revokeObjectURL(portraitPreview);
+    },
+    [portraitPreview],
+  );
 
-  function choosePortrait(file:File|null){
+  function choosePortrait(file: File | null) {
     setPortraitMessage("");
-    if(!file)return;
-    if(!["image/jpeg","image/png","image/webp"].includes(file.type)){setPortraitMessage("รองรับเฉพาะ JPG, PNG หรือ WebP");return}
-    if(file.size>5*1024*1024){setPortraitMessage("รูปต้องมีขนาดไม่เกิน 5 MB");return}
-    setPortraitFile(file);setPortraitPreview(URL.createObjectURL(file));
+    if (!file) return;
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      setPortraitMessage("รองรับเฉพาะ JPG, PNG หรือ WebP");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setPortraitMessage("รูปต้องมีขนาดไม่เกิน 5 MB");
+      return;
+    }
+    setPortraitFile(file);
+    setPortraitPreview(URL.createObjectURL(file));
   }
 
-  async function uploadPortrait(){
-    if(!portraitFile)return;
-    setPortraitBusy(true);setPortraitMessage("");
-    try{
-      const form=new FormData();form.set("portrait",portraitFile);
-      const response=await fetch(`/api/characters/${character.id}/portrait`,{method:"POST",body:form});
-      const result=await response.json();
-      if(!response.ok)throw new Error(result.error==="file_too_large"?"รูปต้องมีขนาดไม่เกิน 5 MB":result.error==="invalid_image"?"ไฟล์นี้ไม่ใช่รูป JPG, PNG หรือ WebP ที่ถูกต้อง":"อัปโหลดรูปไม่สำเร็จ");
-      setAppearance(current=>({...current,customPortraitPath:result.path}));
-      setPortraitFile(null);setPortraitPreview("");setPortraitMessage("ใช้รูปที่อัปโหลดแล้ว · จะแสดงในล็อบบี้ แผนที่ และ VTT");setStatus("saved");
-    }catch(error){setPortraitMessage(error instanceof Error?error.message:"อัปโหลดรูปไม่สำเร็จ")}finally{setPortraitBusy(false)}
+  async function uploadPortrait() {
+    if (!portraitFile) return;
+    setPortraitBusy(true);
+    setPortraitMessage("");
+    try {
+      const form = new FormData();
+      form.set("portrait", portraitFile);
+      const response = await fetch(`/api/characters/${character.id}/portrait`, {
+        method: "POST",
+        body: form,
+      });
+      const result = await response.json();
+      if (!response.ok)
+        throw new Error(
+          result.error === "file_too_large"
+            ? "รูปต้องมีขนาดไม่เกิน 5 MB"
+            : result.error === "invalid_image"
+              ? "ไฟล์นี้ไม่ใช่รูป JPG, PNG หรือ WebP ที่ถูกต้อง"
+              : "อัปโหลดรูปไม่สำเร็จ",
+        );
+      setAppearance((current) => ({
+        ...current,
+        customPortraitPath: result.path,
+      }));
+      setPortraitFile(null);
+      setPortraitPreview("");
+      setPortraitMessage(
+        "ใช้รูปที่อัปโหลดแล้ว · จะแสดงในล็อบบี้ แผนที่ และ VTT",
+      );
+      setStatus("saved");
+    } catch (error) {
+      setPortraitMessage(
+        error instanceof Error ? error.message : "อัปโหลดรูปไม่สำเร็จ",
+      );
+    } finally {
+      setPortraitBusy(false);
+    }
   }
 
-  async function removePortrait(){
-    setPortraitBusy(true);setPortraitMessage("");
-    try{
-      const response=await fetch(`/api/characters/${character.id}/portrait`,{method:"DELETE"});
-      const result=await response.json();if(!response.ok)throw new Error(result.error??"remove_failed");
-      setAppearance(current=>{const{customPortraitPath:_,...generated}=current;return generated as Appearance});
-      setPortraitFile(null);setPortraitPreview("");setPortraitMessage("กลับมาใช้ภาพตัวละครที่ระบบสร้างแล้ว");setStatus("saved");
-    }catch{setPortraitMessage("นำรูปออกไม่สำเร็จ กรุณาลองอีกครั้ง")}finally{setPortraitBusy(false)}
+  async function removePortrait() {
+    setPortraitBusy(true);
+    setPortraitMessage("");
+    try {
+      const response = await fetch(`/api/characters/${character.id}/portrait`, {
+        method: "DELETE",
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error ?? "remove_failed");
+      setAppearance((current) => {
+        const { customPortraitPath: _, ...generated } = current;
+        return generated as Appearance;
+      });
+      setPortraitFile(null);
+      setPortraitPreview("");
+      setPortraitMessage("กลับมาใช้ภาพตัวละครที่ระบบสร้างแล้ว");
+      setStatus("saved");
+    } catch {
+      setPortraitMessage("นำรูปออกไม่สำเร็จ กรุณาลองอีกครั้ง");
+    } finally {
+      setPortraitBusy(false);
+    }
   }
 
   function changeStat(key: keyof Stats, amount: number) {
-    setStats((current) => ({ ...current, [key]: Math.max(1, Math.min(30, current[key] + amount)) }));
+    setStats((current) => ({
+      ...current,
+      [key]: Math.max(1, Math.min(30, current[key] + amount)),
+    }));
     setStatus("idle");
   }
 
   function addItem() {
-    setInventory((items) => [...items, { id: crypto.randomUUID(), name: "", quantity: 1, note: "" }]);
+    setInventory((items) => [
+      ...items,
+      { id: crypto.randomUUID(), name: "", quantity: 1, note: "" },
+    ]);
     setStatus("idle");
   }
 
   function updateItem(id: string, patch: Partial<InventoryItem>) {
-    setInventory((items) => items.map((item) => item.id === id ? { ...item, ...patch } : item));
+    setInventory((items) =>
+      items.map((item) => (item.id === id ? { ...item, ...patch } : item)),
+    );
     setStatus("idle");
   }
 
@@ -113,85 +246,525 @@ export function CharacterSheet({ character, wallet, statuses, innate,skills,bles
       const response = await fetch(`/api/characters/${character.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ stats, hpCurrent, hpMax, inventory,appearance }),
+        body: JSON.stringify({
+          stats,
+          hpCurrent,
+          hpMax,
+          inventory,
+          appearance,
+        }),
       });
       const result = await response.json();
-      if (!response.ok) throw new Error(errorMessages[result.error] ?? errorMessages.save_failed);
+      if (!response.ok)
+        throw new Error(
+          errorMessages[result.error] ?? errorMessages.save_failed,
+        );
       setStatus("saved");
       setMessage("บันทึก Character Sheet แล้ว");
     } catch (error) {
       setStatus("error");
-      setMessage(error instanceof Error ? error.message : errorMessages.save_failed);
+      setMessage(
+        error instanceof Error ? error.message : errorMessages.save_failed,
+      );
     }
   }
 
   return (
     <main className="sheet-shell">
-      <header className="sheet-topbar"><Link href="/lobby">← กลับล็อบบี้</Link><span>MYTHWEAVE · CHARACTER SHEET</span><button onClick={save} disabled={status === "saving"}>{status === "saving" ? "กำลังบันทึก…" : "บันทึกการเปลี่ยนแปลง"}</button></header>
+      <header className="sheet-topbar">
+        <Link href="/lobby">← กลับล็อบบี้</Link>
+        <span>MYTHWEAVE · CHARACTER SHEET</span>
+        <button onClick={save} disabled={status === "saving"}>
+          {status === "saving" ? "กำลังบันทึก…" : "บันทึกการเปลี่ยนแปลง"}
+        </button>
+      </header>
       <section className="sheet-layout">
         <aside className="sheet-identity">
-          <div className="sheet-avatar"><CharacterAvatar appearance={appearance} characterClass={character.characterClass} customPortraitUrl={portraitPreview||undefined} name={character.name} race={character.race} /></div>
-          <small>LEVEL {character.level} · {selectedClass?.role}</small>
+          <div className="sheet-avatar">
+            <CharacterAvatar
+              appearance={appearance}
+              characterClass={character.characterClass}
+              customPortraitUrl={portraitPreview || undefined}
+              name={character.name}
+              race={character.race}
+            />
+          </div>
+          <small>
+            LEVEL {character.level} · {selectedClass?.role}
+          </small>
           <h1>{character.name}</h1>
-          <p>{race?.label} · {selectedClass?.label}</p>
-          <div className="sheet-hp-heading"><span>พลังชีวิต</span><strong>{hpCurrent} / {hpMax}</strong></div>
-          <div className="sheet-hp-track"><i style={{ width: `${hpPercent}%` }} /></div>
+          <p>
+            {race?.label} · {selectedClass?.label}
+          </p>
+          <div className="sheet-hp-heading">
+            <span>พลังชีวิต</span>
+            <strong>
+              {hpCurrent} / {hpMax}
+            </strong>
+          </div>
+          <div className="sheet-hp-track">
+            <i style={{ width: `${hpPercent}%` }} />
+          </div>
           <div className="sheet-hp-controls">
-            <label><span>HP ปัจจุบัน</span><input type="number" min="0" max={hpMax} value={hpCurrent} onChange={(event) => { setHpCurrent(Math.max(0, Math.min(hpMax, Number(event.target.value)))); setStatus("idle"); }} /></label>
-            <label><span>HP สูงสุด</span><input type="number" min="1" max="9999" value={hpMax} onChange={(event) => { const value = Math.max(1, Math.min(9999, Number(event.target.value))); setHpMax(value); setHpCurrent((hp) => Math.min(hp, value)); setStatus("idle"); }} /></label>
+            <label>
+              <span>HP ปัจจุบัน</span>
+              <input
+                type="number"
+                min="0"
+                max={hpMax}
+                value={hpCurrent}
+                onChange={(event) => {
+                  setHpCurrent(
+                    Math.max(0, Math.min(hpMax, Number(event.target.value))),
+                  );
+                  setStatus("idle");
+                }}
+              />
+            </label>
+            <label>
+              <span>HP สูงสุด</span>
+              <input
+                type="number"
+                min="1"
+                max="9999"
+                value={hpMax}
+                onChange={(event) => {
+                  const value = Math.max(
+                    1,
+                    Math.min(9999, Number(event.target.value)),
+                  );
+                  setHpMax(value);
+                  setHpCurrent((hp) => Math.min(hp, value));
+                  setStatus("idle");
+                }}
+              />
+            </label>
           </div>
           <div className="sheet-derived">
-            <div><strong>{armorClass}</strong><span>เกราะ AC</span></div>
-            <div><strong>+{proficiency}</strong><span>Proficiency</span></div>
-            <div><strong>{passivePerception}</strong><span>Passive WIS</span></div>
+            <div>
+              <strong>{armorClass}</strong>
+              <span>เกราะ AC</span>
+            </div>
+            <div>
+              <strong>+{proficiency}</strong>
+              <span>Proficiency</span>
+            </div>
+            <div>
+              <strong>{passivePerception}</strong>
+              <span>Passive WIS</span>
+            </div>
           </div>
-          <p className="sheet-updated">แก้ไขล่าสุด {new Date(character.updatedAt).toLocaleString("th-TH")}</p>
-          {innate && <section className="innate-card"><small>INNATE GIFT · {innate.activation}</small><h3>{innate.name_th}</h3><p>{innate.description_th}</p><b>{innate.usage_rule_th}</b></section>}
-          {blessing&&<section className={`blessing-card tier-${blessing.tier}`}><small>DIVINE BLESSING · TIER {blessing.tier}</small><h3>{blessing.name_th}</h3><b>{blessing.deity_th}</b><p>{blessing.description_th}</p>{blessing.effect_key==="divine_rescue"&&<small>{blessing.last_triggered_at?`เทพเคยช่วยแล้ว ${new Date(blessing.last_triggered_at).toLocaleDateString("th-TH")} · ฟื้นพลังหลัง 7 วัน`:"พรพร้อมตอบรับเมื่อเผชิญความตาย"}</small>}</section>}
-          <Link className="wallet-shop-link" href={`/relationships?character=${character.id}`}>สายสัมพันธ์ NPC →</Link>
-          <Link className="wallet-shop-link" href={`/guilds?character=${character.id}`}>ชื่อเสียงกิลด์ →</Link>
-          <Link className="wallet-shop-link" href={`/crafting/cooking?character=${character.id}`}>ครัวกองไฟ →</Link>
-          <Link className="wallet-shop-link" href={`/crafting/brewing?character=${character.id}`}>โต๊ะปรุงยา →</Link>
-          <Link className="wallet-shop-link" href={`/forge?character=${character.id}`}>เตาหลอม Relic →</Link>
-          <Link className="wallet-shop-link" href={`/world?character=${character.id}`}>แผนที่โลก →</Link>
-          <Link className="wallet-shop-link" href={`/lore/races/${character.race}?character=${character.id}`}>ตำนานเผ่าของฉัน →</Link>
-          <Link className="wallet-shop-link" href={`/bestiary?character=${character.id}`}>สมุดบันทึกอสูร →</Link>
-          <Link className="wallet-shop-link" href={`/codex?character=${character.id}`}>Codex รวมความรู้ →</Link>
-          <Link className="wallet-shop-link" href={`/companions?character=${character.id}`}>โฮมุนครุสคู่หู →</Link>
-          <Link className="wallet-shop-link" href={`/solo?character=${character.id}`}>Solo Expedition →</Link>
-          <Link className="wallet-shop-link" href={`/achievements?character=${character.id}`}>Achievement & Title →</Link>
-          <Link className="wallet-shop-link" href={`/factions?character=${character.id}`}>ชื่อเสียงฝ่ายแห่งโลก →</Link>
-          <Link className="wallet-shop-link" href={`/life?character=${character.id}`}>ชะตา การตาย และเกิดใหม่ →</Link>
-          <Link className="wallet-shop-link" href={`/party?character=${character.id}`}>ปาร์ตี้ถาวร →</Link>
-          <Link className="wallet-shop-link" href={`/trade?character=${character.id}`}>แลกเปลี่ยนกับผู้เล่น →</Link>
-          <Link className="wallet-shop-link" href={`/votes?character=${character.id}`}>สภาโหวตปาร์ตี้ →</Link>
-          <Link className="wallet-shop-link" href={`/dungeons?character=${character.id}`}>Dungeon Generator →</Link>
-          <Link className="wallet-shop-link" href={`/progression?character=${character.id}`}>คลาสรอง อาชีพ สกิลผสม และรูน →</Link>
+          <p className="sheet-updated">
+            แก้ไขล่าสุด {new Date(character.updatedAt).toLocaleString("th-TH")}
+          </p>
+          {innate && (
+            <section className="innate-card">
+              <small>INNATE GIFT · {innate.activation}</small>
+              <h3>{innate.name_th}</h3>
+              <p>{innate.description_th}</p>
+              <b>{innate.usage_rule_th}</b>
+            </section>
+          )}
+          {blessing && (
+            <section className={`blessing-card tier-${blessing.tier}`}>
+              <small>DIVINE BLESSING · TIER {blessing.tier}</small>
+              <h3>{blessing.name_th}</h3>
+              <b>{blessing.deity_th}</b>
+              <p>{blessing.description_th}</p>
+              {blessing.effect_key === "divine_rescue" && (
+                <small>
+                  {blessing.last_triggered_at
+                    ? `เทพเคยช่วยแล้ว ${new Date(blessing.last_triggered_at).toLocaleDateString("th-TH")} · ฟื้นพลังหลัง 7 วัน`
+                    : "พรพร้อมตอบรับเมื่อเผชิญความตาย"}
+                </small>
+              )}
+            </section>
+          )}
+          <Link
+            className="wallet-shop-link"
+            href={`/relationships?character=${character.id}`}
+          >
+            สายสัมพันธ์ NPC →
+          </Link>
+          <Link
+            className="wallet-shop-link"
+            href={`/guilds?character=${character.id}`}
+          >
+            ชื่อเสียงกิลด์ →
+          </Link>
+          <Link
+            className="wallet-shop-link"
+            href={`/crafting/cooking?character=${character.id}`}
+          >
+            ครัวกองไฟ →
+          </Link>
+          <Link
+            className="wallet-shop-link"
+            href={`/crafting/brewing?character=${character.id}`}
+          >
+            โต๊ะปรุงยา →
+          </Link>
+          <Link
+            className="wallet-shop-link"
+            href={`/forge?character=${character.id}`}
+          >
+            เตาหลอม Relic →
+          </Link>
+          <Link
+            className="wallet-shop-link"
+            href={`/world?character=${character.id}`}
+          >
+            แผนที่โลก →
+          </Link>
+          <Link
+            className="wallet-shop-link"
+            href={`/lore/races/${character.race}?character=${character.id}`}
+          >
+            ตำนานเผ่าของฉัน →
+          </Link>
+          <Link
+            className="wallet-shop-link"
+            href={`/bestiary?character=${character.id}`}
+          >
+            สมุดบันทึกอสูร →
+          </Link>
+          <Link
+            className="wallet-shop-link"
+            href={`/codex?character=${character.id}`}
+          >
+            Codex รวมความรู้ →
+          </Link>
+          <Link
+            className="wallet-shop-link"
+            href={`/companions?character=${character.id}`}
+          >
+            โฮมุนครุสคู่หู →
+          </Link>
+          <Link
+            className="wallet-shop-link"
+            href={`/solo?character=${character.id}`}
+          >
+            Solo Expedition →
+          </Link>
+          <Link
+            className="wallet-shop-link"
+            href={`/achievements?character=${character.id}`}
+          >
+            Achievement & Title →
+          </Link>
+          <Link
+            className="wallet-shop-link"
+            href={`/factions?character=${character.id}`}
+          >
+            ชื่อเสียงฝ่ายแห่งโลก →
+          </Link>
+          <Link
+            className="wallet-shop-link"
+            href={`/life?character=${character.id}`}
+          >
+            ชะตา การตาย และเกิดใหม่ →
+          </Link>
+          <Link
+            className="wallet-shop-link"
+            href={`/party?character=${character.id}`}
+          >
+            ปาร์ตี้ถาวร →
+          </Link>
+          <Link
+            className="wallet-shop-link"
+            href={`/trade?character=${character.id}`}
+          >
+            แลกเปลี่ยนกับผู้เล่น →
+          </Link>
+          <Link
+            className="wallet-shop-link"
+            href={`/votes?character=${character.id}`}
+          >
+            สภาโหวตปาร์ตี้ →
+          </Link>
+          <Link
+            className="wallet-shop-link"
+            href={`/dungeons?character=${character.id}`}
+          >
+            Dungeon Generator →
+          </Link>
+          <Link
+            className="wallet-shop-link"
+            href={`/progression?character=${character.id}`}
+          >
+            อาชีพรอง ไลฟ์สกิล สกิลผสม และรูน →
+          </Link>
         </aside>
 
         <div className="sheet-main">
-          <section className="sheet-panel portrait-studio"><div className="sheet-section-title"><div><small>PORTRAIT STUDIO</small><h2>รูปประจำตัวละคร</h2></div><p>ใช้ร่วมกันบน Character Sheet, Lobby, World Map และ VTT</p></div><div className="portrait-upload-panel"><div><b>{portraitPreview?"พร้อมอัปโหลด":appearance.customPortraitPath?"กำลังใช้รูปของคุณ":"อัปโหลดรูปจากเครื่อง"}</b><span>JPG, PNG หรือ WebP · สูงสุด 5 MB · แนะนำภาพแนวตั้ง 3:4</span></div><label className="portrait-file-button">เลือกรูป<input accept="image/jpeg,image/png,image/webp" disabled={portraitBusy} onChange={event=>choosePortrait(event.target.files?.[0]??null)} type="file"/></label>{portraitFile&&<button className="portrait-confirm" disabled={portraitBusy} onClick={uploadPortrait}>{portraitBusy?"กำลังอัปโหลด…":"ยืนยันใช้รูปนี้"}</button>}{(appearance.customPortraitPath||portraitPreview)&&<button className="portrait-remove" disabled={portraitBusy} onClick={portraitPreview?()=>{setPortraitFile(null);setPortraitPreview("");setPortraitMessage("")}:removePortrait}>{portraitPreview?"ยกเลิก":"กลับไปใช้ภาพที่ระบบสร้าง"}</button>}</div>{portraitMessage&&<p className="portrait-message" aria-live="polite">{portraitMessage}</p>}{!appearance.customPortraitPath&&!portraitPreview&&(["portraitBackdrop","portraitFrame","portraitSigil"]as const).map(key=><div className="portrait-choice" key={key}><b>{key==="portraitBackdrop"?"ฉากหลัง":key==="portraitFrame"?"กรอบ":"ตราประจำตัว"}</b><span>{APPEARANCE_OPTIONS[key].map(option=><button className={(appearance[key]??(key==="portraitBackdrop"?"forest":key==="portraitFrame"?"gold":"class"))===option.id?"selected":""} key={option.id} onClick={()=>{setAppearance(current=>({...current,[key]:option.id}));setStatus("idle")}}>{option.label}</button>)}</span></div>)}</section>
-          <section className="sheet-panel sheet-skill-book"><div className="sheet-section-title"><div><small>CLASS SKILL BOOK</small><h2>สกิลประจำคลาส</h2></div><p>เข้าโต๊ะเล่นเพื่อใช้สกิลและส่งผลให้ทุกคนเห็นพร้อมกัน</p></div><div className="skill-grid">{skills.map(skill=><article className={skill.effect_type}key={skill.id}><header><span>{skill.action_type.toUpperCase()}</span><i>{skill.max_uses===0?"∞":`${skill.max_uses} USES`}</i></header><h3>{skill.name_th}</h3><p>{skill.description_th}</p><footer><small>{skill.dice_count?`${skill.dice_count}d${skill.dice_sides} + ${skill.modifier_stat?.slice(0,3).toUpperCase()}`:"ไม่ทอยเต๋า"} · {skill.recharge==="at_will"?"ใช้ได้เสมอ":skill.recharge==="short_rest"?"พักสั้น":"พักยาว"}</small></footer></article>)}</div></section>
+          <section className="sheet-panel portrait-studio">
+            <div className="sheet-section-title">
+              <div>
+                <small>PORTRAIT STUDIO</small>
+                <h2>รูปประจำตัวละคร</h2>
+              </div>
+              <p>ใช้ร่วมกันบน Character Sheet, Lobby, World Map และ VTT</p>
+            </div>
+            <div className="portrait-upload-panel">
+              <div>
+                <b>
+                  {portraitPreview
+                    ? "พร้อมอัปโหลด"
+                    : appearance.customPortraitPath
+                      ? "กำลังใช้รูปของคุณ"
+                      : "อัปโหลดรูปจากเครื่อง"}
+                </b>
+                <span>
+                  JPG, PNG หรือ WebP · สูงสุด 5 MB · แนะนำภาพแนวตั้ง 3:4
+                </span>
+              </div>
+              <label className="portrait-file-button">
+                เลือกรูป
+                <input
+                  accept="image/jpeg,image/png,image/webp"
+                  disabled={portraitBusy}
+                  onChange={(event) =>
+                    choosePortrait(event.target.files?.[0] ?? null)
+                  }
+                  type="file"
+                />
+              </label>
+              {portraitFile && (
+                <button
+                  className="portrait-confirm"
+                  disabled={portraitBusy}
+                  onClick={uploadPortrait}
+                >
+                  {portraitBusy ? "กำลังอัปโหลด…" : "ยืนยันใช้รูปนี้"}
+                </button>
+              )}
+              {(appearance.customPortraitPath || portraitPreview) && (
+                <button
+                  className="portrait-remove"
+                  disabled={portraitBusy}
+                  onClick={
+                    portraitPreview
+                      ? () => {
+                          setPortraitFile(null);
+                          setPortraitPreview("");
+                          setPortraitMessage("");
+                        }
+                      : removePortrait
+                  }
+                >
+                  {portraitPreview ? "ยกเลิก" : "กลับไปใช้ภาพที่ระบบสร้าง"}
+                </button>
+              )}
+            </div>
+            {portraitMessage && (
+              <p className="portrait-message" aria-live="polite">
+                {portraitMessage}
+              </p>
+            )}
+            {!appearance.customPortraitPath &&
+              !portraitPreview &&
+              (
+                ["portraitBackdrop", "portraitFrame", "portraitSigil"] as const
+              ).map((key) => (
+                <div className="portrait-choice" key={key}>
+                  <b>
+                    {key === "portraitBackdrop"
+                      ? "ฉากหลัง"
+                      : key === "portraitFrame"
+                        ? "กรอบ"
+                        : "ตราประจำตัว"}
+                  </b>
+                  <span>
+                    {APPEARANCE_OPTIONS[key].map((option) => (
+                      <button
+                        className={
+                          (appearance[key] ??
+                            (key === "portraitBackdrop"
+                              ? "forest"
+                              : key === "portraitFrame"
+                                ? "gold"
+                                : "class")) === option.id
+                            ? "selected"
+                            : ""
+                        }
+                        key={option.id}
+                        onClick={() => {
+                          setAppearance((current) => ({
+                            ...current,
+                            [key]: option.id,
+                          }));
+                          setStatus("idle");
+                        }}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </span>
+                </div>
+              ))}
+          </section>
+          <section className="sheet-panel sheet-skill-book">
+            <div className="sheet-section-title">
+              <div>
+                <small>CLASS SKILL BOOK</small>
+                <h2>สกิลประจำคลาส</h2>
+              </div>
+              <p>เข้าโต๊ะเล่นเพื่อใช้สกิลและส่งผลให้ทุกคนเห็นพร้อมกัน</p>
+            </div>
+            <div className="skill-grid">
+              {skills.map((skill) => (
+                <article className={skill.effect_type} key={skill.id}>
+                  <header>
+                    <span>{skill.action_type.toUpperCase()}</span>
+                    <i>
+                      {skill.max_uses === 0 ? "∞" : `${skill.max_uses} USES`}
+                    </i>
+                  </header>
+                  <h3>{skill.name_th}</h3>
+                  <p>{skill.description_th}</p>
+                  <footer>
+                    <small>
+                      {skill.dice_count
+                        ? `${skill.dice_count}d${skill.dice_sides} + ${skill.modifier_stat?.slice(0, 3).toUpperCase()}`
+                        : "ไม่ทอยเต๋า"}{" "}
+                      ·{" "}
+                      {skill.recharge === "at_will"
+                        ? "ใช้ได้เสมอ"
+                        : skill.recharge === "short_rest"
+                          ? "พักสั้น"
+                          : "พักยาว"}
+                    </small>
+                  </footer>
+                </article>
+              ))}
+            </div>
+          </section>
           <section className="sheet-panel">
-            <div className="sheet-section-title"><div><small>ABILITIES</small><h2>ค่าสถานะ</h2></div><p>ปรับได้ 1–30 · modifier คำนวณอัตโนมัติ</p></div>
-            <div className="sheet-stats">{STAT_KEYS.map((key) => <article key={key}><span>{STAT_LABELS[key].short}</span><small>{STAT_LABELS[key].label}</small><strong>{stats[key]}</strong><em>{signed(abilityModifier(stats[key]))}</em><div><button onClick={() => changeStat(key, -1)} disabled={stats[key] <= 1}>−</button><button onClick={() => changeStat(key, 1)} disabled={stats[key] >= 30}>+</button></div></article>)}</div>
+            <div className="sheet-section-title">
+              <div>
+                <small>ABILITIES</small>
+                <h2>ค่าสถานะ</h2>
+              </div>
+              <p>ปรับได้ 1–30 · modifier คำนวณอัตโนมัติ</p>
+            </div>
+            <div className="sheet-stats">
+              {STAT_KEYS.map((key) => (
+                <article key={key}>
+                  <span>{STAT_LABELS[key].short}</span>
+                  <small>{STAT_LABELS[key].label}</small>
+                  <strong>{stats[key]}</strong>
+                  <em>{signed(abilityModifier(stats[key]))}</em>
+                  <div>
+                    <button
+                      onClick={() => changeStat(key, -1)}
+                      disabled={stats[key] <= 1}
+                    >
+                      −
+                    </button>
+                    <button
+                      onClick={() => changeStat(key, 1)}
+                      disabled={stats[key] >= 30}
+                    >
+                      +
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
           </section>
 
           <section className="sheet-panel">
-            <div className="sheet-section-title"><div><small>INVENTORY</small><h2>สัมภาระ</h2></div><button className="sheet-add" onClick={addItem} disabled={inventory.length >= 100}>+ เพิ่มสิ่งของ</button></div>
-            {inventory.length ? <div className="inventory-list">
-              <div className="inventory-head"><span>สิ่งของ</span><span>จำนวน</span><span>รายละเอียด</span><span /></div>
-              {inventory.map((item) => <div className="inventory-row" key={item.id}>
-                <input aria-label="ชื่อสิ่งของ" maxLength={60} placeholder="เช่น Healing Potion" value={item.name} onChange={(event) => updateItem(item.id, { name: event.target.value })} />
-                <input aria-label="จำนวน" type="number" min="1" max="999" value={item.quantity} onChange={(event) => updateItem(item.id, { quantity: Math.max(1, Math.min(999, Number(event.target.value))) })} />
-                <input aria-label="รายละเอียด" maxLength={200} placeholder="หมายเหตุ (ไม่บังคับ)" value={item.note} onChange={(event) => updateItem(item.id, { note: event.target.value })} />
-                <button aria-label={`นำ ${item.name || "สิ่งของ"} ออก`} onClick={() => { setInventory((items) => items.filter((entry) => entry.id !== item.id)); setStatus("idle"); }}>×</button>
-              </div>)}
-            </div> : <div className="inventory-empty"><span>◇</span><p>กระเป๋ายังว่างเปล่า</p><button onClick={addItem}>เพิ่มสิ่งของชิ้นแรก</button></div>}
+            <div className="sheet-section-title">
+              <div>
+                <small>INVENTORY</small>
+                <h2>สัมภาระ</h2>
+              </div>
+              <button
+                className="sheet-add"
+                onClick={addItem}
+                disabled={inventory.length >= 100}
+              >
+                + เพิ่มสิ่งของ
+              </button>
+            </div>
+            {inventory.length ? (
+              <div className="inventory-list">
+                <div className="inventory-head">
+                  <span>สิ่งของ</span>
+                  <span>จำนวน</span>
+                  <span>รายละเอียด</span>
+                  <span />
+                </div>
+                {inventory.map((item) => (
+                  <div className="inventory-row" key={item.id}>
+                    <input
+                      aria-label="ชื่อสิ่งของ"
+                      maxLength={60}
+                      placeholder="เช่น Healing Potion"
+                      value={item.name}
+                      onChange={(event) =>
+                        updateItem(item.id, { name: event.target.value })
+                      }
+                    />
+                    <input
+                      aria-label="จำนวน"
+                      type="number"
+                      min="1"
+                      max="999"
+                      value={item.quantity}
+                      onChange={(event) =>
+                        updateItem(item.id, {
+                          quantity: Math.max(
+                            1,
+                            Math.min(999, Number(event.target.value)),
+                          ),
+                        })
+                      }
+                    />
+                    <input
+                      aria-label="รายละเอียด"
+                      maxLength={200}
+                      placeholder="หมายเหตุ (ไม่บังคับ)"
+                      value={item.note}
+                      onChange={(event) =>
+                        updateItem(item.id, { note: event.target.value })
+                      }
+                    />
+                    <button
+                      aria-label={`นำ ${item.name || "สิ่งของ"} ออก`}
+                      onClick={() => {
+                        setInventory((items) =>
+                          items.filter((entry) => entry.id !== item.id),
+                        );
+                        setStatus("idle");
+                      }}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="inventory-empty">
+                <span>◇</span>
+                <p>กระเป๋ายังว่างเปล่า</p>
+                <button onClick={addItem}>เพิ่มสิ่งของชิ้นแรก</button>
+              </div>
+            )}
           </section>
-          <WalletPanel characterId={character.id} initialBalance={wallet.balance} initialTransactions={wallet.transactions} />
-          <StatusPanel characterId={character.id} templates={statuses.templates} initialEffects={statuses.effects} />
-          <div className={`sheet-save-note ${status}`}>{message || "การเปลี่ยนแปลงจะยังไม่ถูกส่งจนกดบันทึก"}</div>
+          <WalletPanel
+            characterId={character.id}
+            initialBalance={wallet.balance}
+            initialTransactions={wallet.transactions}
+          />
+          <StatusPanel
+            characterId={character.id}
+            templates={statuses.templates}
+            initialEffects={statuses.effects}
+          />
+          <div className={`sheet-save-note ${status}`}>
+            {message || "การเปลี่ยนแปลงจะยังไม่ถูกส่งจนกดบันทึก"}
+          </div>
         </div>
       </section>
     </main>

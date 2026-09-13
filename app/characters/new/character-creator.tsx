@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import {
   APPEARANCE_OPTIONS,
   CLASSES,
-  compatibleSecondaryClasses,
   DEFAULT_APPEARANCE,
   DEFAULT_STATS,
   PROFESSIONS,
@@ -65,7 +64,6 @@ export function CharacterCreator({
   const [dimensionId, setDimensionId] = useState(dimensions[0]?.id ?? "");
   const [race, setRace] = useState("human");
   const [characterClass, setCharacterClass] = useState("fighter");
-  const [secondaryClass, setSecondaryClass] = useState("");
   const [profession, setProfession] = useState("chronicler");
   const [appearance, setAppearance] = useState<Appearance>(DEFAULT_APPEARANCE);
   const [stats, setStats] = useState<Stats>(DEFAULT_STATS);
@@ -77,8 +75,6 @@ export function CharacterCreator({
   const selectedRace = RACES.find((item) => item.id === race) ?? RACES[0];
   const selectedClass =
     CLASSES.find((item) => item.id === characterClass) ?? CLASSES[0];
-  const selectedSecondary = CLASSES.find((item) => item.id === secondaryClass);
-  const secondaryOptions = compatibleSecondaryClasses(characterClass);
   const selectedProfession =
     PROFESSIONS.find((item) => item.id === profession) ?? PROFESSIONS[0];
   const used = pointBuyUsed(stats);
@@ -101,15 +97,8 @@ export function CharacterCreator({
     const body = APPEARANCE_OPTIONS.body.find(
       (item) => item.id === appearance.body,
     )?.label;
-    return `Create a premium dark-fantasy RPG character portrait for ${name.trim() || "an unnamed adventurer"}, a ${selectedRace.label} ${selectedClass.label}${selectedSecondary ? ` / ${selectedSecondary.label}` : ""}, with the life profession ${selectedProfession.label}. ${skin} skin tone, ${hairStyle} hairstyle, ${hairColor} hair, ${face} facial structure, ${body} build. ${selectedClass.description}. Cinematic painterly realism, intricate fantasy costume appropriate to both class and profession, expressive face, dramatic rim lighting, atmospheric ${appearance.portraitBackdrop ?? "forest"} background, centered single character, vertical 3:4 composition, sharp readable silhouette suitable for a tabletop token, high detail. No text, no logo, no watermark, no extra people, no cropped head or hands.`;
-  }, [
-    appearance,
-    name,
-    selectedClass,
-    selectedProfession,
-    selectedRace,
-    selectedSecondary,
-  ]);
+    return `Create a premium dark-fantasy RPG character portrait for ${name.trim() || "an unnamed adventurer"}, a ${selectedRace.label} whose main combat class is ${selectedClass.label} and whose secondary life profession is ${selectedProfession.label}. ${skin} skin tone, ${hairStyle} hairstyle, ${hairColor} hair, ${face} facial structure, ${body} build. ${selectedClass.description}. Cinematic painterly realism, intricate fantasy costume blending the combat class with tools and details from the life profession, expressive face, dramatic rim lighting, atmospheric ${appearance.portraitBackdrop ?? "forest"} background, centered single character, vertical 3:4 composition, sharp readable silhouette suitable for a tabletop token, high detail. No text, no logo, no watermark, no extra people, no cropped head or hands.`;
+  }, [appearance, name, selectedClass, selectedProfession, selectedRace]);
 
   function chooseRace(nextRace: string) {
     setRace(nextRace);
@@ -131,7 +120,7 @@ export function CharacterCreator({
       const nextValue = current[key] + direction;
       if (nextValue < 8 || nextValue > STARTING_STAT_MAX) return current;
       const next = { ...current, [key]: nextValue };
-      return pointBuyUsed(next) <= 27 ? next : current;
+      return pointBuyUsed(next) <= STARTING_POINT_BUDGET ? next : current;
     });
   }
 
@@ -173,8 +162,7 @@ export function CharacterCreator({
       ];
     const nextRace = pick(RACES),
       nextClass = pick(CLASSES),
-      nextProfession = pick(PROFESSIONS),
-      links = compatibleSecondaryClasses(nextClass.id);
+      nextProfession = pick(PROFESSIONS);
     const shuffled = STAT_KEYS.filter((key) => key !== nextClass.primary).sort(
         () => Math.random() - 0.5,
       ),
@@ -185,9 +173,6 @@ export function CharacterCreator({
     setName(`${pick(first)} ${pick(last)}`);
     chooseRace(nextRace.id);
     setCharacterClass(nextClass.id);
-    setSecondaryClass(
-      links.length && Math.random() < 0.6 ? pick(links).id : "",
-    );
     setProfession(nextProfession.id);
     setStats(nextStats);
     randomAppearance();
@@ -244,7 +229,6 @@ export function CharacterCreator({
           name,
           race,
           characterClass,
-          secondaryClass: secondaryClass || null,
           profession,
           appearance,
           stats: submittedStats,
@@ -433,10 +417,7 @@ export function CharacterCreator({
                   <button
                     className={characterClass === item.id ? "selected" : ""}
                     key={item.id}
-                    onClick={() => {
-                      setCharacterClass(item.id);
-                      setSecondaryClass("");
-                    }}
+                    onClick={() => setCharacterClass(item.id)}
                     type="button"
                     style={
                       { "--class-color": item.color } as React.CSSProperties
@@ -452,32 +433,15 @@ export function CharacterCreator({
                   </button>
                 ))}
               </div>
-              <section className="calling-builder">
-                <div>
-                  <small>OPTIONAL MULTICLASS</small>
-                  <h2>ผสมสายต่อสู้ที่เข้ากันได้</h2>
-                  <p>
-                    ได้รับสกิลเริ่มต้นจากคลาสรอง 1 สกิล โดย HP
-                    และตัวตนหลักยังยึดคลาสแรก
-                  </p>
-                </div>
-                <select
-                  value={secondaryClass}
-                  onChange={(event) => setSecondaryClass(event.target.value)}
-                >
-                  <option value="">ไม่เลือกคลาสรอง</option>
-                  {secondaryOptions.map((item) => (
-                    <option value={item.id} key={item.id}>
-                      {item.icon} {item.label} · {item.role}
-                    </option>
-                  ))}
-                </select>
-              </section>
               <section className="profession-builder">
                 <div>
-                  <small>LIFE PROFESSION</small>
-                  <h2>เลือกวิชาชีพประจำชีวิต</h2>
-                  <p>โบนัสเริ่มต้น 5% และเติบโตได้ถึง 10% ตามระดับความถนัด</p>
+                  <small>SECONDARY CLASS · LIFE PROFESSION</small>
+                  <h2>เลือกอาชีพรองสำหรับไลฟ์สกิล</h2>
+                  <p>
+                    แนวทางแบบ Log Horizon: คลาสหลักใช้ต่อสู้
+                    ส่วนอาชีพรองใช้คราฟต์ สำรวจ ค้าขาย และหาความรู้ ·
+                    โบนัสเริ่มต้น 5% และเติบโตได้ถึง 10%
+                  </p>
                 </div>
                 <div>
                   {PROFESSIONS.map((item) => (
@@ -703,11 +667,10 @@ export function CharacterCreator({
           <span className="preview-kicker">LIVE PORTRAIT</span>
           <h2>{name.trim() || "ผู้ไร้นาม"}</h2>
           <p>
-            {selectedRace.label} · {selectedClass.label}
-            {selectedSecondary ? ` / ${selectedSecondary.label}` : ""}
+            {selectedRace.label} · คลาสหลัก {selectedClass.label}
           </p>
           <small className="preview-profession">
-            {selectedProfession.icon} {selectedProfession.label} ·{" "}
+            อาชีพรอง {selectedProfession.icon} {selectedProfession.label} ·{" "}
             {selectedProfession.bonus}
           </small>
           <div className="preview-vitals">

@@ -26,7 +26,12 @@ type Language = {
   learned_via: string;
   source_note: string | null;
 };
-type RuneRecord={language_id:string;discovered_at:string;studied_at:string|null;language:Omit<Language,"learned_via"|"source_note">};
+type RuneRecord = {
+  language_id: string;
+  discovered_at: string;
+  studied_at: string | null;
+  language: Omit<Language, "learned_via" | "source_note">;
+};
 export function ProgressionWorkshop({
   character,
   calling,
@@ -139,8 +144,8 @@ export function ProgressionWorkshop({
         <small>BUILD · CRAFT · DECIPHER</small>
         <h1>เส้นทางและศาสตร์ประยุกต์</h1>
         <p>
-          คลาสรองไม่แทนที่ตัวตนหลัก อาชีพชีวิตเติบโตตามเลเวล
-          และรูนใช้ได้ต่อเมื่ออ่านภาษาของมันออก
+          คลาสหลักกำหนดการต่อสู้ อาชีพรองกำหนดไลฟ์สกิลและเติบโตตามเลเวล
+          ส่วนรูนใช้ได้ต่อเมื่ออ่านภาษาของมันออก
         </p>
       </section>
       {message && <p className="progression-message">{message}</p>}
@@ -154,20 +159,7 @@ export function ProgressionWorkshop({
           <span>คลาสหลัก · Level {character.level}</span>
         </article>
         <article>
-          <small>SECONDARY CALLING</small>
-          <b>
-            {calling?.secondary_class
-              ? `${findClass(calling.secondary_class)?.icon} ${findClass(calling.secondary_class)?.label}`
-              : "ไม่ได้ผสมคลาส"}
-          </b>
-          <span>
-            {calling?.secondary_class
-              ? "ได้รับ 1 สกิลข้ามสาย"
-              : "เลือกได้ตอนสร้างตัวละคร"}
-          </span>
-        </article>
-        <article>
-          <small>LIFE PROFESSION</small>
+          <small>SECONDARY CLASS · LIFE PROFESSION</small>
           <b>
             {calling?.profession?.icon}{" "}
             {calling?.profession?.name_th ?? "ยังไม่มี"}
@@ -194,6 +186,16 @@ export function ProgressionWorkshop({
                 ? "ชำนาญสูงสุด"
                 : `ฝึกขั้นถัดไป · Lv.${nextRank}`}
             </button>
+          )}
+          {calling?.secondary_class && (
+            <details>
+              <summary>วิชาข้ามสายจากระบบเดิม</summary>
+              <span>
+                {findClass(calling.secondary_class)?.icon}{" "}
+                {findClass(calling.secondary_class)?.label} ·
+                เก็บไว้เพื่อไม่ให้ตัวละครเก่าสูญเสียสกิล
+              </span>
+            </details>
           )}
         </article>
       </section>
@@ -263,14 +265,40 @@ export function ProgressionWorkshop({
             {languages.map((language) => (
               <span key={language.id}>
                 <b>{language.name_th}</b>
-                <small>{language.learned_via === "formal_training" ? "เรียนจากสำนัก" : language.learned_via === "rune_record" ? "ถอดความจากบันทึก" : "ความรู้เดิม"} · {language.rarity}</small>
+                <small>
+                  {language.learned_via === "formal_training"
+                    ? "เรียนจากสำนัก"
+                    : language.learned_via === "rune_record"
+                      ? "ถอดความจากบันทึก"
+                      : "ความรู้เดิม"}{" "}
+                  · {language.rarity}
+                </small>
               </span>
             ))}
             {!languages.length && (
               <i>ยังไม่รู้ภาษารูน — มีโอกาสพบจากการสำรวจ</i>
             )}
           </div>
-          {records.some(record=>!record.studied_at)&&<div className="rune-records">{records.filter(record=>!record.studied_at).map(record=><article key={record.language_id}><b>บันทึก {record.language.name_th}</b><small>พบแล้ว แต่ต้องศึกษาก่อนจึงจะอ่านและใช้รูนได้</small><button disabled={busy!==""}onClick={()=>act("study_rune",{languageId:record.language_id})}>ศึกษาบันทึก</button></article>)}</div>}
+          {records.some((record) => !record.studied_at) && (
+            <div className="rune-records">
+              {records
+                .filter((record) => !record.studied_at)
+                .map((record) => (
+                  <article key={record.language_id}>
+                    <b>บันทึก {record.language.name_th}</b>
+                    <small>พบแล้ว แต่ต้องศึกษาก่อนจึงจะอ่านและใช้รูนได้</small>
+                    <button
+                      disabled={busy !== ""}
+                      onClick={() =>
+                        act("study_rune", { languageId: record.language_id })
+                      }
+                    >
+                      ศึกษาบันทึก
+                    </button>
+                  </article>
+                ))}
+            </div>
+          )}
           <button
             disabled={busy !== "" || cooldown > 0}
             onClick={() => act("search_runes")}
